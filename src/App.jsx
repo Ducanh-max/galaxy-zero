@@ -31,7 +31,7 @@ function PhoneController({peerId}){
  const press=(key,value)=>e=>{e.preventDefault();controls.current[key]=value;};
  const pad=(label,key,value,cls='')=><button className={'phone-pad '+cls} onPointerDown={press(key,value)} onPointerUp={press(key,0)} onPointerLeave={press(key,0)} onContextMenu={e=>e.preventDefault()}>{label}</button>;
  return <main className="phone-controller"><header><div className="phone-logo">✦ SKY<span>CTRL</span></div><div className={'phone-status '+(status==='CONNECTED'?'is-connected':'')}>{status}</div></header>
- <section className="phone-speed"><label>FLIGHT SPEED <b>{speed.toFixed(1)} m/s</b></label><input type="range" min="1" max="20" step=".5" value={speed} onChange={e=>setSpeed(Number(e.target.value))}/><div><span>SLOW</span><span>FAST</span></div></section>
+ <section className="phone-speed"><label>FLIGHT SPEED <b>{speed.toFixed(1)} m/s</b></label><input type="range" min="1" max="50" step="1" value={speed} onChange={e=>setSpeed(Number(e.target.value))}/><div><span>SLOW</span><span>FAST</span></div></section>
  <section className="phone-flight"><div className="phone-section-title">MOVEMENT</div><div className="phone-pad-grid">{pad('▲','forward',1,'up')}{pad('◀','side',-1)}{pad('▼','forward',-1)}{pad('▶','side',1)}</div>
  <div className="phone-section-title">ALTITUDE & ROTATION</div><div className="phone-actions">{pad('＋ UP','vertical',1)}{pad('－ DOWN','vertical',-1)}{pad('↶ YAW','yaw',-1)}{pad('YAW ↷','yaw',1)}</div></section>
  <p className="phone-hint">Giữ nút để điều khiển • Thả tay để dừng</p></main>;
@@ -59,7 +59,7 @@ function World({ position, yaw, fpv, paused, cameraYaw, cameraPitch, scanned }) 
       cameraTarget.current.copy(state.camera.position).add(direction.multiplyScalar(35));
       state.camera.lookAt(cameraTarget.current);
     } else {
-      const offset = new THREE.Vector3(0, 4.2, 9.5).applyAxisAngle(new THREE.Vector3(0,1,0), smoothYaw);
+      const offset = new THREE.Vector3(0, 4.2, 9.5).applyAxisAngle(new THREE.Vector3(1,0,0), cameraPitch).applyAxisAngle(new THREE.Vector3(0,1,0), smoothYaw + cameraYaw);
       const desired = target.clone().add(offset);
       state.camera.position.lerp(desired, 1 - Math.exp(-5.0*dt));
       cameraTarget.current.copy(target).add(new THREE.Vector3(0, .2, 0));
@@ -76,10 +76,10 @@ function World({ position, yaw, fpv, paused, cameraYaw, cameraPitch, scanned }) 
     <mesh position={[-48,38,-115]}><sphereGeometry args={[13,32,24]}/><meshBasicMaterial color="#ffd9a1"/></mesh>
     {Array.from({length:9},(_,i)=><group key={'cloud'+i} position={[Math.sin(i*8)*42,15+(i%3)*5,-18-i*15]}>{[0,1,2].map(j=><mesh key={j} position={[(j-1)*2.4,Math.sin(j*2+i)*.5,0]} scale={[1.8,1,.9]}><sphereGeometry args={[1,16,12]}/><meshStandardMaterial color="#e9f5f4" transparent opacity={.34} roughness={1}/></mesh>)}</group>)}
     {Array.from({length:32},(_,i)=><group key={'ridge'+i} position={[(i-16)*9,-.5,-118-(i%4)*5]}><mesh><coneGeometry args={[8+(i%5)*2,12+(i%4)*4,5]}/><meshStandardMaterial color={i%2?'#456c70':'#567b7b'} roughness={1}/></mesh><mesh position={[0,3,0]}><coneGeometry args={[4+(i%3),7,5]}/><meshStandardMaterial color="#78938b" roughness={1}/></mesh></group>)}
-    <mesh rotation={[-Math.PI/2,0,0]} position={[0,-.5,-45]} receiveShadow>
-      <planeGeometry args={[260,260]} /><meshStandardMaterial color="#55745e" roughness={1}/>
+    <mesh rotation={[-Math.PI/2,0,0]} position={[80,-.5,-130]} receiveShadow>
+      <planeGeometry args={[600,600]} /><meshStandardMaterial color="#55745e" roughness={1}/>
     </mesh>
-    <gridHelper args={[220,44,'#b7d0bb','#78947d']} position={[0,-.48,-45]}/>
+    <gridHelper args={[600,120,'#b7d0bb','#78947d']} position={[80,-.48,-130]}/>
     {Array.from({length:34},(_,i)=>[-1,1].map(side=><mesh key={'edge'+i+'-'+side} position={[side*7,.05,-i*4-8]}><cylinderGeometry args={[.09,.09,.12,12]}/><meshStandardMaterial color="#8af5ff" emissive="#37ddec" emissiveIntensity={2.2}/></mesh>))}
     {Array.from({length:38},(_,i)=>{
       const x=Math.sin(i*12.3)*42, z=-i*4-10, h=4+(i%5)*2.5;
@@ -114,19 +114,19 @@ function World({ position, yaw, fpv, paused, cameraYaw, cameraPitch, scanned }) 
       {[-1,1].map(x=><group key={x} position={[x*.48,-.3,.18]}><mesh><cylinderGeometry args={[.035,.035,.45,10]}/><meshStandardMaterial color="#303c46" metalness={.7}/></mesh><mesh position={[0,-.22,.12]} rotation={[Math.PI/2,0,0]}><cylinderGeometry args={[.035,.035,.48,10]}/><meshStandardMaterial color="#303c46" metalness={.7}/></mesh></group>)}
       <pointLight position={[0,0,-.9]} color="#40eaff" intensity={1.1} distance={3}/></group>
     </group>
-    <AirportScene scanned={scanned}/>
+    <group position={[150,0,-190]}><AirportScene scanned={scanned}/></group>
     <Float speed={1.2} floatIntensity={.15}><mesh position={[-22,14,-65]}><sphereGeometry args={[7,32,32]}/><meshStandardMaterial color="#d7e4df" roughness={1}/></mesh></Float>
     <Sparkles count={100} scale={[65,25,130]} position={[0,8,-55]} size={1.4} speed={.2} color="#ffffff"/>
   </>;
 }
-const AIRCRAFT_STANDS=Array.from({length:20},(_,i)=>({x:(i%5-2)*13,z:-72-Math.floor(i/5)*12,target:[2,9,17].includes(i)}));
+const AIRCRAFT_STANDS=Array.from({length:20},(_,i)=>({x:(i%5-2)*22,z:-72-Math.floor(i/5)*20,target:[2,9,17].includes(i)}));
 function AirportScene({scanned}) {
  return <group>
-  <mesh rotation={[-Math.PI/2,0,0]} position={[0,-.39,-91]}><planeGeometry args={[150,82]}/><meshStandardMaterial color="#777f82" roughness={.95}/></mesh>
-  <mesh rotation={[-Math.PI/2,0,0]} position={[0,-.37,-111]}><planeGeometry args={[13,125]}/><meshStandardMaterial color="#343d43"/></mesh>
+  <mesh rotation={[-Math.PI/2,0,0]} position={[0,-.39,-105]}><planeGeometry args={[260,145]}/><meshStandardMaterial color="#777f82" roughness={.95}/></mesh>
+  <mesh rotation={[-Math.PI/2,0,0]} position={[0,-.37,-125]}><planeGeometry args={[24,230]}/><meshStandardMaterial color="#343d43"/></mesh>
   {Array.from({length:18},(_,i)=><mesh key={i} rotation={[-Math.PI/2,0,0]} position={[0,-.35,-52-i*6]}><planeGeometry args={[.45,3]}/><meshBasicMaterial color="#f3f4e9"/></mesh>)}
-  <mesh position={[0,2,-62]}><boxGeometry args={[65,4,12]}/><meshStandardMaterial color="#b9cbd0"/></mesh>
-  <mesh position={[0,4.4,-62]}><boxGeometry args={[65,.7,12]}/><meshStandardMaterial color="#4a8494" emissive="#24515c"/></mesh>
+  <mesh position={[0,2,-55]}><boxGeometry args={[110,5,18]}/><meshStandardMaterial color="#b9cbd0"/></mesh>
+  <mesh position={[0,4.8,-55]}><boxGeometry args={[110,.8,18]}/><meshStandardMaterial color="#4a8494" emissive="#24515c"/></mesh>
   {AIRCRAFT_STANDS.map((a,i)=>{const marked=a.target,done=scanned.includes(i),paint=marked?(done?'#5ee0a0':'#ffb84e'):'#dce5eb';return <group key={i} position={[a.x,.45,a.z]} rotation={[0,Math.PI,0]}>
    <mesh rotation={[Math.PI/2,0,0]}><capsuleGeometry args={[.42,3.5,5,10]}/><meshStandardMaterial color={paint} metalness={.35}/></mesh>
    <mesh><boxGeometry args={[10,.12,1.05]}/><meshStandardMaterial color={marked?'#d48a31':'#718b9a'}/></mesh>
@@ -176,10 +176,10 @@ export default function App(){
   const canvas=document.querySelector('.sim-shell canvas');
   if(!canvas)return;
   const drag=cameraDrag.current;
-  const down=e=>{if(!fpv||e.button!==0)return;drag.active=true;drag.x=e.clientX;drag.y=e.clientY;canvas.style.cursor='grabbing';e.preventDefault();};
+  const down=e=>{if(e.button!==0)return;drag.active=true;drag.x=e.clientX;drag.y=e.clientY;canvas.style.cursor='grabbing';e.preventDefault();};
   const move=e=>{if(!drag.active)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.x=e.clientX;drag.y=e.clientY;setCameraYaw(v=>v-dx*.0045);setCameraPitch(v=>THREE.MathUtils.clamp(v-dy*.0045,-1.25,1.1));};
-  const up=()=>{drag.active=false;canvas.style.cursor=fpv?'grab':'';};
-  canvas.style.cursor=fpv?'grab':'';
+  const up=()=>{drag.active=false;canvas.style.cursor='grab';};
+  canvas.style.cursor='grab';
   canvas.addEventListener('pointerdown',down);
   window.addEventListener('pointermove',move);
   window.addEventListener('pointerup',up);
@@ -193,13 +193,13 @@ export default function App(){
   let frame,last=performance.now(),ui=0;
   const tick=now=>{const dt=Math.min((now-last)/1000,.04);last=now;
    if(!paused){const k=keys.current;let p=posRef.current;let y=yawRef.current;
-    if(k.g && now-lastScan.current>650 && scannedRef.current.length<3){lastScan.current=now;const candidates=AIRCRAFT_STANDS.map((a,i)=>({i,dx:a.x-p[0],dz:a.z-p[2]})).filter(a=>[2,9,17].includes(a.i)&&!scannedRef.current.includes(a.i)).map(a=>({...a,distance:Math.hypot(a.dx,a.dz),dot:(a.dx*Math.sin(y+cameraYaw)+a.dz*(-Math.cos(y+cameraYaw)))/(Math.hypot(a.dx,a.dz)||1)})).sort((a,b)=>a.distance-b.distance);const hit=candidates.find(a=>a.distance<115&&a.dot>.91);if(hit){const next=[...scannedRef.current,hit.i];scannedRef.current=next;setScanned(next);setNotice('AIRCRAFT '+next.length+'/3 VERIFIED — GOOD SCAN');}else setNotice('GỢI Ý: BẬT FPV, KÉO CHUỘT ĐƯA TÂM NGẮM VÀO MÁY BAY CÓ ĐÈN CAM');}
+    if(k.g && now-lastScan.current>650 && scannedRef.current.length<3){lastScan.current=now;const candidates=AIRCRAFT_STANDS.map((a,i)=>({i,dx:a.x+150-p[0],dz:a.z-190-p[2]})).filter(a=>[2,9,17].includes(a.i)&&!scannedRef.current.includes(a.i)).map(a=>({...a,distance:Math.hypot(a.dx,a.dz),dot:(a.dx*Math.sin(y+cameraYaw)+a.dz*(-Math.cos(y+cameraYaw)))/(Math.hypot(a.dx,a.dz)||1)})).sort((a,b)=>a.distance-b.distance);const hit=candidates.find(a=>a.distance<115&&a.dot>.91);if(hit){const next=[...scannedRef.current,hit.i];scannedRef.current=next;setScanned(next);setNotice('AIRCRAFT '+next.length+'/3 VERIFIED — GOOD SCAN');}else setNotice('GỢI Ý: BẬT FPV, KÉO CHUỘT ĐƯA TÂM NGẮM VÀO MÁY BAY CÓ ĐÈN CAM');}
     y+=((k.q?1:0)-(k.e?1:0)+remote.current.yaw)*dt*1.5;
     const forward=THREE.MathUtils.clamp((((k.w||k.arrowup)?1:0)-((k.s||k.arrowdown)?1:0))+remote.current.forward,-1,1);
     const side=THREE.MathUtils.clamp((((k.d||k.arrowright)?1:0)-((k.a||k.arrowleft)?1:0))+remote.current.side,-1,1);
     const vertical=THREE.MathUtils.clamp((((k[' ']||k.r)?1:0)-((k.shift||k.f)?1:0))+remote.current.vertical,-1,1);
-    const v=maxSpeedRef.current;const movementYaw=fpv?y+cameraYaw:y;const desired=[(Math.sin(movementYaw)*forward+Math.cos(movementYaw)*side)*v,vertical*v*.72,(-Math.cos(movementYaw)*forward+Math.sin(movementYaw)*side)*v];velocity.current=velocity.current.map((value,i)=>THREE.MathUtils.damp(value,desired[i],(forward||side||vertical)?5.5:2.2,dt));const nx=THREE.MathUtils.clamp(p[0]+velocity.current[0]*dt,-55,55);
-    const nz=THREE.MathUtils.clamp(p[2]+velocity.current[2]*dt,-125,18);
+    const v=maxSpeedRef.current;const movementYaw=fpv?y+cameraYaw:y;const desired=[(Math.sin(movementYaw)*forward+Math.cos(movementYaw)*side)*v,vertical*v*.72,(-Math.cos(movementYaw)*forward+Math.sin(movementYaw)*side)*v];velocity.current=velocity.current.map((value,i)=>THREE.MathUtils.damp(value,desired[i],(forward||side||vertical)?5.5:2.2,dt));const nx=THREE.MathUtils.clamp(p[0]+velocity.current[0]*dt,-100,260);
+    const nz=THREE.MathUtils.clamp(p[2]+velocity.current[2]*dt,-380,35);
     const ny=THREE.MathUtils.clamp(p[1]+velocity.current[1]*dt,1,120);
     posRef.current=[nx,ny,nz];yawRef.current=y;
     if(now-ui>50){setPos([...posRef.current]);setYaw(y);setSpeed(Math.round(Math.hypot(...velocity.current)));setBattery(b=>Math.max(0,b-dt*.12));ui=now;}
@@ -214,13 +214,13 @@ export default function App(){
   <div className="sim-top"><div className="sim-brand"><span>✦</span> SKY<span>CTRL</span><small>DRONE FLIGHT SIMULATOR</small></div><div className="sim-live"><i/> SIMULATION ONLINE <b>• TRAINING MODE</b></div><div className="sim-buttons"><button onClick={()=>setFpv(v=>!v)}><Camera size={16}/>{fpv?'CHASE CAM':'FPV VIEW'}</button><button onClick={()=>setPaused(v=>!v)}>{paused?<Play size={16}/>:<Pause size={16}/>}</button><button onClick={reset}><RotateCcw size={16}/></button></div></div>
   <section className="sim-card sim-left"><div className="sim-label">FLIGHT TELEMETRY</div><div className="sim-metric"><span>ALTITUDE <small>MAX 120 M</small></span><strong>{pos[1].toFixed(1)} <small>m</small></strong></div><div className="sim-metric"><span>GROUND SPEED</span><strong>{speed.toFixed(0)} <small>m/s</small></strong></div><div className="sim-metric"><span>HEADING</span><strong>{((yaw*180/Math.PI+360)%360).toFixed(0)}°</strong></div><div className="sim-divider"/><div className="sim-battery"><Battery size={15}/><span>BATTERY</span><b>{battery.toFixed(0)}%</b></div><div className="sim-batbar"><i style={{width:battery+'%'}}/></div><div className="sim-signal"><Signal size={14}/> GPS LOCK <b>STRONG</b></div></section>
 
-  <section className="sim-card sim-speed-panel"><div className="sim-label"><Gauge size={13}/> SPEED CONTROL</div><div className="sim-speed-value">{maxSpeed.toFixed(1)} <small>m/s</small></div><input aria-label="Maximum flight speed" type="range" min="1" max="20" step=".5" value={maxSpeed} onChange={e=>setMaxSpeed(Number(e.target.value))}/><div className="sim-speed-scale"><span>1 SLOW</span><span>20 FAST</span></div><div className="sim-speed-presets">{[3,8.5,14,20].map(v=><button key={v} className={maxSpeed===v?'active':''} onClick={()=>setMaxSpeed(v)}>{v===3?'SLOW':v===8.5?'NORMAL':v===14?'FAST':'MAX'}</button>)}</div></section>
+  <section className="sim-card sim-speed-panel"><div className="sim-label"><Gauge size={13}/> SPEED CONTROL</div><div className="sim-speed-value">{maxSpeed.toFixed(1)} <small>m/s</small></div><input aria-label="Maximum flight speed" type="range" min="1" max="20" step=".5" value={maxSpeed} onChange={e=>setMaxSpeed(Number(e.target.value))}/><div className="sim-speed-scale"><span>1 SLOW</span><span>50 FAST</span></div><div className="sim-speed-presets">{[5,15,30,50].map(v=><button key={v} className={maxSpeed===v?'active':''} onClick={()=>setMaxSpeed(v)}>{v===5?'SLOW':v===15?'NORMAL':v===30?'FAST':'MAX'}</button>)}</div></section>
   <section className="sim-card sim-phone-panel"><div className="sim-label"><Smartphone size={13}/> PHONE LINK</div><div className="sim-phone-state"><i className={phoneConnected?'connected':''}/>{phoneConnected?'PHONE CONNECTED':'PAIR YOUR PHONE'}</div>{peerId?<><img className="sim-qr" alt="QR code to connect phone controller" src={'https://api.qrserver.com/v1/create-qr-code/?size=132x132&data='+encodeURIComponent(phoneUrl)}/><button className="sim-copy-link" onClick={copyPhoneLink}>{copied?<Check size={13}/>:<Copy size={13}/>} {copied?'COPIED':'COPY PHONE LINK'}</button><small>Quét mã QR bằng điện thoại cùng mạng internet.</small></>:<small>Đang tạo mã kết nối...</small>}</section>
 
   <section className="sim-card sim-mission-panel"><div className="sim-label">✦ AIRPORT SCAN MISSION</div><h3>{scanned.length===3?'MISSION COMPLETE':'VERIFY 3 AIRCRAFT'}</h3><p>Sân bay có 20 máy bay. Tìm 3 chiếc có đèn màu cam và quét xác nhận bằng nút G.</p><div className="mission-stats"><span>VERIFIED</span><b>{scanned.length}/3</b><strong>{Math.round(scanned.length/3*100)}%</strong></div><div className="mission-status">{scanned.length===3?'✓ ALL 3 AIRCRAFT VERIFIED':'G = SCAN • '+(3-scanned.length)+' LEFT'}</div><small className="mission-hint">GỢI Ý: Nhấn C bật FPV → kéo chuột căn tâm vào đèn cam → nhấn G. Bay gần hơn nếu chưa quét được.</small><button className="mission-start" onClick={()=>{setScanned([]);scannedRef.current=[];setNotice('MISSION RESET — FIND THE 3 AMBER AIRCRAFT');}}>RESET MISSION</button></section>
   <section className="sim-card sim-minimap"><div className="sim-label">MINI MAP <span>LIVE GPS</span></div><svg viewBox="0 0 180 125" role="img" aria-label="Mini map showing drone, target and runway"><path d="M90 5V120M10 62H170" stroke="#ffffff18" strokeDasharray="3 4"/><path d="M76 14L104 14L104 110L76 110Z" fill="#738c96" opacity=".35"/><path d="M90 18V106" stroke="#e5f4fa" strokeWidth="2" strokeDasharray="7 6"/><path d="M55 108L125 108" stroke="#f2c16c" strokeWidth="4"/><circle cx={90+pos[0]*.75} cy={Math.max(8,Math.min(118,30+pos[2]*.7))} r="5" fill="#62e7ef" stroke="#fff" strokeWidth="1.5"/><path d={`M${90+pos[0]*.75} ${Math.max(8,Math.min(118,30+pos[2]*.7))-9}l-4 8h8z`} fill="#62e7ef"/>{AIRCRAFT_STANDS.map((a,i)=><circle key={i} cx={90+a.x*.75} cy={Math.max(8,Math.min(118,30-a.z*.65))} r={[2,9,17].includes(i)?3.2:1.8} fill={[2,9,17].includes(i)?(scanned.includes(i)?"#5ee0a0":"#ffb84e"):"#a9bbc4"}/>) }<text x="8" y="12" fill="#b9d5df" fontSize="7">N</text><text x="130" y="119" fill="#f2c16c" fontSize="7">RUNWAY</text></svg><small>CYAN: DRONE • AMBER: SCAN TARGETS</small></section>
   <div className="sim-notice">{notice}</div>
-  <div className="sim-controls"><div className="sim-label">CONTROLS</div><div><kbd>G</kbd><span>SCAN AIRCRAFT</span></div><div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>MOVE</span></div><div><kbd>SPACE</kbd><kbd>SHIFT</kbd><span>UP / DOWN</span></div><div><kbd>Q</kbd><kbd>E</kbd><span>YAW LEFT / RIGHT</span></div><div><kbd>C</kbd><span>FPV / CHASE CAMERA</span></div><div><span>FPV: DRAG MOUSE TO LOOK</span></div><div><kbd>P</kbd><span>PAUSE</span></div></div>
+  <div className="sim-controls"><div className="sim-label">CONTROLS</div><div><kbd>G</kbd><span>SCAN AIRCRAFT</span></div><div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>MOVE</span></div><div><kbd>SPACE</kbd><kbd>SHIFT</kbd><span>UP / DOWN</span></div><div><kbd>Q</kbd><kbd>E</kbd><span>YAW LEFT / RIGHT</span></div><div><kbd>C</kbd><span>FPV / CHASE CAMERA</span></div><div><span>DRAG MOUSE: ROTATE CAMERA IN BOTH VIEWS</span></div><div><kbd>P</kbd><span>PAUSE</span></div></div>
   <div className="sim-crosshair">＋</div>
   {paused&&<div className="sim-pause"><div><div className="sim-label">SIMULATION PAUSED</div><h1>FLIGHT <span>PAUSED</span></h1><button onClick={()=>setPaused(false)}><Play size={16}/> RESUME FLIGHT</button></div></div>}
   <div className="sim-footer"><Wind size={14}/> WIND 3.2 M/S <span>•</span> CLEAR SKY <span>•</span> TRAINING AIRSPACE</div>
