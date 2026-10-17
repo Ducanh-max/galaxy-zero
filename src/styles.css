@@ -32,3 +32,9 @@
 .inventory-note{font-size:11px;line-height:1.4;color:#7894b5;margin:12px 2px 0}
 @media(max-width:760px){.inventory-trigger{top:auto;right:14px;bottom:205px}.inventory-panel{right:14px;top:350px;width:min(290px,calc(100% - 28px))}}
 @media(max-width:440px){.inventory-trigger{bottom:205px}.inventory-panel{top:350px}}
+
+/* WebGL compatibility fallback */
+.webgl-fallback{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:28px;text-align:center;background:radial-gradient(ellipse at 50% 42%,#142b50 0%,#080f24 48%,#030611 100%);color:#eaf3ff;font-family:'Rajdhani',sans-serif}
+.webgl-fallback .fallback-mark{display:grid;place-items:center;width:64px;height:64px;margin-bottom:18px;border:1px solid #59dfff;border-radius:18px;color:#59dfff;font:800 22px Orbitron,sans-serif;box-shadow:0 0 35px #168bb055}
+.webgl-fallback h1{margin:0 0 12px;font:700 clamp(22px,4vw,34px) Orbitron,sans-serif;letter-spacing:3px}
+.webgl-fallback p{max-width:440px;margin:5px 0;color:#a9c4e2;font-size:16px}
