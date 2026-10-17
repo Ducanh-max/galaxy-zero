@@ -112,7 +112,9 @@ function Crystal({ position, collected, onCollect, index, color }) {
   </group>;
 }
 
-function Drone({ position, index }) {
+function Drone({ position, index, planet }) {
+  const droneColor = planet.id === 'vulcan' ? '#d87542' : planet.id === 'cryon' ? '#5aaec4' : '#9b536e';
+  const eyeColor = planet.id === 'vulcan' ? '#ffb45e' : planet.id === 'cryon' ? '#9cf3ff' : '#ff536f';
   const ref = useRef();
   useFrame((state) => {
     if (ref.current) {
@@ -121,10 +123,10 @@ function Drone({ position, index }) {
     }
   });
   return <group ref={ref} position={position}>
-    <mesh castShadow><icosahedronGeometry args={[0.52, 1]} /><meshStandardMaterial color="#9b536e" metalness={0.72} roughness={0.3} /></mesh>
-    <mesh position={[0, 0, 0.43]}><sphereGeometry args={[0.16, 16, 16]} /><meshBasicMaterial color="#ff536f" /></mesh>
-    <pointLight color="#ff456c" intensity={0.8} distance={2.4} />
-    <mesh position={[0, -0.42, 0]}><torusGeometry args={[0.42, 0.045, 8, 24]} /><meshBasicMaterial color="#ff6d8b" /></mesh>
+    <mesh castShadow><icosahedronGeometry args={[0.52, 1]} /><meshStandardMaterial color={droneColor} metalness={0.72} roughness={0.3} /></mesh>
+    <mesh position={[0, 0, 0.43]}><sphereGeometry args={[0.16, 16, 16]} /><meshBasicMaterial color={eyeColor} /></mesh>
+    <pointLight color={eyeColor} intensity={0.8} distance={2.4} />
+    <mesh position={[0, -0.42, 0]}><torusGeometry args={[0.42, 0.045, 8, 24]} /><meshBasicMaterial color={droneColor} /></mesh>
   </group>;
 }
 
@@ -163,8 +165,8 @@ function World({ player, collected, onCollect, flying, planet }) {
     {!flying && <Astronaut position={player} />}
     <Spaceship position={player} flying={flying} />
     {CRYSTALS.map((p, i) => <Crystal key={i} position={p} index={i} collected={collected.includes(i)} onCollect={() => onCollect(i)} color={planet.glow} />)}
-    <Drone position={[-7, 0, 2]} index={1} />
-    <Drone position={[7, 0, 5]} index={2} />
+    <Drone position={[-7, 0, 2]} index={1} planet={planet} />
+    <Drone position={[7, 0, 5]} index={2} planet={planet} />
     <mesh position={[0, 0.05, -10]} rotation={[-Math.PI / 2, 0, 0]}>
       <ringGeometry args={[2.2, 2.35, 48]} />
       <meshBasicMaterial color="#42dfff" transparent opacity={0.55} />
