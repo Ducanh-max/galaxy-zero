@@ -158,8 +158,8 @@ function World({ player, collected, onCollect, flying, planet }) {
     <ambientLight intensity={0.62} />
     <directionalLight position={[-5, 12, 7]} intensity={2.2} castShadow shadow-mapSize={[1024, 1024]} />
     <pointLight position={[0, 5, 0]} color="#4a6dff" intensity={1.5} distance={18} />
-    <Stars radius={90} depth={55} count={2600} factor={4} saturation={0.4} fade speed={0.35} />
-    <Sparkles count={90} scale={25} size={2} speed={0.25} color="#8d9eff" />
+    <Stars radius={90} depth={55} count={1200} factor={3} saturation={0.35} fade speed={0.2} />
+    <Sparkles count={45} scale={22} size={1.5} speed={0.18} color="#8d9eff" />
     <PlanetBackdrop planet={planet} />
     <Ground planet={planet} />
     {!flying && <Astronaut position={player} />}
@@ -243,7 +243,7 @@ export default function App() {
 
   const progress = Math.round((collectedCount / CRYSTALS.length) * 100);
   return <main className="game-shell">
-    <Canvas shadows camera={{ position: [0, 7.5, 11], fov: 48 }} dpr={[1, 1.7]}>
+    <Canvas fallback={<div className="webgl-fallback"><div className="fallback-mark">GZ</div><h1>GALAXY ZERO</h1><p>Trình duyệt chưa khởi tạo được đồ họa 3D (WebGL).</p><p>Hãy bật tăng tốc phần cứng trong trình duyệt hoặc thử Chrome/Edge mới nhất.</p></div>} gl={{ antialias: false, alpha: false, powerPreference: "default", failIfMajorPerformanceCaveat: false }} camera={{ position: [0, 7.5, 11], fov: 48 }} dpr={[1, 1.25]}>
       <Suspense fallback={null}>
         <World player={player} collected={collected} onCollect={collect} flying={flying} planet={planet} />
       </Suspense>
