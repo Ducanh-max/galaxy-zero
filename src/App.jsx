@@ -37,7 +37,7 @@ function PhoneController({peerId}){
  <p className="phone-hint">Giữ nút để điều khiển • Thả tay để dừng</p></main>;
 }
 
-function World({ position, yaw, fpv, paused, cameraYaw, cameraPitch, targetRef, targetActive }) {
+function World({ position, yaw, fpv, paused, cameraYaw, cameraPitch, scanned }) {
   const drone = useRef();
   const cameraTarget = useRef(new THREE.Vector3());
   useFrame((state, dt) => {
@@ -114,21 +114,26 @@ function World({ position, yaw, fpv, paused, cameraYaw, cameraPitch, targetRef, 
       {[-1,1].map(x=><group key={x} position={[x*.48,-.3,.18]}><mesh><cylinderGeometry args={[.035,.035,.45,10]}/><meshStandardMaterial color="#303c46" metalness={.7}/></mesh><mesh position={[0,-.22,.12]} rotation={[Math.PI/2,0,0]}><cylinderGeometry args={[.035,.035,.48,10]}/><meshStandardMaterial color="#303c46" metalness={.7}/></mesh></group>)}
       <pointLight position={[0,0,-.9]} color="#40eaff" intensity={1.1} distance={3}/></group>
     </group>
-    <TrainingTarget targetRef={targetRef} active={targetActive}/>
+    <AirportScene scanned={scanned}/>
     <Float speed={1.2} floatIntensity={.15}><mesh position={[-22,14,-65]}><sphereGeometry args={[7,32,32]}/><meshStandardMaterial color="#d7e4df" roughness={1}/></mesh></Float>
     <Sparkles count={100} scale={[65,25,130]} position={[0,8,-55]} size={1.4} speed={.2} color="#ffffff"/>
   </>;
 }
-function TrainingTarget({targetRef,active}) {
- const ref=useRef();
- useFrame((_,dt)=>{if(!ref.current||!active)return;ref.current.position.z+=dt*1.05;targetRef.current.copy(ref.current.position);});
- if(!active)return null;
- return <group ref={ref} position={[0,8,-92]} rotation={[0,Math.PI,0]}>
-  <mesh castShadow><capsuleGeometry args={[.22,2.1,4,8]}/><meshStandardMaterial color="#d5e3ec" metalness={.55} roughness={.35}/></mesh>
-  <mesh position={[0,0,0]}><boxGeometry args={[5.8,.09,.72]}/><meshStandardMaterial color="#e2a84c" metalness={.35}/></mesh>
-  <mesh position={[0,.35,.72]}><boxGeometry args={[1.5,.08,.75]}/><meshStandardMaterial color="#e2a84c"/></mesh>
-  <mesh position={[0,-.08,-1.05]}><coneGeometry args={[.24,.8,12]}/><meshStandardMaterial color="#e2a84c"/></mesh>
-  <pointLight position={[0,.3,0]} color="#ffbd55" intensity={1.5} distance={8}/>
+const AIRCRAFT_STANDS=Array.from({length:20},(_,i)=>({x:(i%5-2)*13,z:-72-Math.floor(i/5)*12,target:[2,9,17].includes(i)}));
+function AirportScene({scanned}) {
+ return <group>
+  <mesh rotation={[-Math.PI/2,0,0]} position={[0,-.39,-91]}><planeGeometry args={[150,82]}/><meshStandardMaterial color="#777f82" roughness={.95}/></mesh>
+  <mesh rotation={[-Math.PI/2,0,0]} position={[0,-.37,-111]}><planeGeometry args={[13,125]}/><meshStandardMaterial color="#343d43"/></mesh>
+  {Array.from({length:18},(_,i)=><mesh key={i} rotation={[-Math.PI/2,0,0]} position={[0,-.35,-52-i*6]}><planeGeometry args={[.45,3]}/><meshBasicMaterial color="#f3f4e9"/></mesh>)}
+  <mesh position={[0,2,-62]}><boxGeometry args={[65,4,12]}/><meshStandardMaterial color="#b9cbd0"/></mesh>
+  <mesh position={[0,4.4,-62]}><boxGeometry args={[65,.7,12]}/><meshStandardMaterial color="#4a8494" emissive="#24515c"/></mesh>
+  {AIRCRAFT_STANDS.map((a,i)=>{const marked=a.target,done=scanned.includes(i),paint=marked?(done?'#5ee0a0':'#ffb84e'):'#dce5eb';return <group key={i} position={[a.x,.45,a.z]} rotation={[0,Math.PI,0]}>
+   <mesh rotation={[Math.PI/2,0,0]}><capsuleGeometry args={[.42,3.5,5,10]}/><meshStandardMaterial color={paint} metalness={.35}/></mesh>
+   <mesh><boxGeometry args={[10,.12,1.05]}/><meshStandardMaterial color={marked?'#d48a31':'#718b9a'}/></mesh>
+   <mesh position={[0,.32,1.55]}><boxGeometry args={[3,.1,1.1]}/><meshStandardMaterial color={paint}/></mesh>
+   <mesh position={[0,.05,-2.25]}><coneGeometry args={[.35,.9,10]}/><meshStandardMaterial color={paint}/></mesh>
+   {marked&&<group position={[0,3.1,0]}><mesh><sphereGeometry args={[.55,12,10]}/><meshBasicMaterial color={done?'#5ee0a0':'#ffad42'}/></mesh><mesh position={[0,1.2,0]}><cylinderGeometry args={[.035,.035,1.5,8]}/><meshBasicMaterial color={done?'#5ee0a0':'#ffad42'}/></mesh></group>}
+  </group>})}
  </group>;
 }
 function Rotor({position}) {
@@ -146,10 +151,9 @@ export default function App(){
  const [cameraYaw,setCameraYaw]=useState(0),[cameraPitch,setCameraPitch]=useState(0);
  const cameraDrag=useRef({active:false,x:0,y:0});
  const [battery,setBattery]=useState(100),[speed,setSpeed]=useState(0);
- const targetRef=useRef(new THREE.Vector3(0,8,-92));
- const [targetHealth,setTargetHealth]=useState(3),[targetFailed,setTargetFailed]=useState(false);
- const targetHealthRef=useRef(3);targetHealthRef.current=targetHealth;
- const targetFailedRef=useRef(false),lastShot=useRef(0);
+ const [scanned,setScanned]=useState([]);
+ const scannedRef=useRef([]);scannedRef.current=scanned;
+ const lastScan=useRef(0);
  const [maxSpeed,setMaxSpeed]=useState(8.5),[peerId,setPeerId]=useState(''),[phoneConnected,setPhoneConnected]=useState(false),[copied,setCopied]=useState(false);
  const remote=useRef({forward:0,side:0,vertical:0,yaw:0}); const maxSpeedRef=useRef(8.5);maxSpeedRef.current=maxSpeed;
  useEffect(()=>{
@@ -189,13 +193,12 @@ export default function App(){
   let frame,last=performance.now(),ui=0;
   const tick=now=>{const dt=Math.min((now-last)/1000,.04);last=now;
    if(!paused){const k=keys.current;let p=posRef.current;let y=yawRef.current;
-    if(targetRef.current.z>-20 && targetHealthRef.current>0 && !targetFailedRef.current){targetFailedRef.current=true;setTargetFailed(true);setNotice('TARGET PASSED THE RUNWAY — MISSION FAILED');}
-    if(k.g && now-lastShot.current>550 && targetHealthRef.current>0 && !targetFailedRef.current){lastShot.current=now;const dx=targetRef.current.x-p[0],dz=targetRef.current.z-p[2],distance=Math.hypot(dx,dz);const aimX=Math.sin(y),aimZ=-Math.cos(y);const dot=(dx*aimX+dz*aimZ)/(distance||1);if(distance<65&&dot>.94){setTargetHealth(h=>Math.max(0,h-1));setNotice('ENERGY PULSE HIT — TARGET '+Math.max(0,targetHealthRef.current-1)+'/3');}else setNotice('ALIGN THE FPV CROSSHAIR WITH THE TRAINING TARGET');}
+    if(k.g && now-lastScan.current>650 && scannedRef.current.length<3){lastScan.current=now;const candidates=AIRCRAFT_STANDS.map((a,i)=>({i,dx:a.x-p[0],dz:a.z-p[2]})).filter(a=>[2,9,17].includes(a.i)&&!scannedRef.current.includes(a.i)).map(a=>({...a,distance:Math.hypot(a.dx,a.dz),dot:(a.dx*Math.sin(y+cameraYaw)+a.dz*(-Math.cos(y+cameraYaw)))/(Math.hypot(a.dx,a.dz)||1)})).sort((a,b)=>a.distance-b.distance);const hit=candidates.find(a=>a.distance<115&&a.dot>.91);if(hit){const next=[...scannedRef.current,hit.i];scannedRef.current=next;setScanned(next);setNotice('AIRCRAFT '+next.length+'/3 VERIFIED — GOOD SCAN');}else setNotice('GỢI Ý: BẬT FPV, KÉO CHUỘT ĐƯA TÂM NGẮM VÀO MÁY BAY CÓ ĐÈN CAM');}
     y+=((k.q?1:0)-(k.e?1:0)+remote.current.yaw)*dt*1.5;
     const forward=THREE.MathUtils.clamp((((k.w||k.arrowup)?1:0)-((k.s||k.arrowdown)?1:0))+remote.current.forward,-1,1);
     const side=THREE.MathUtils.clamp((((k.d||k.arrowright)?1:0)-((k.a||k.arrowleft)?1:0))+remote.current.side,-1,1);
     const vertical=THREE.MathUtils.clamp((((k[' ']||k.r)?1:0)-((k.shift||k.f)?1:0))+remote.current.vertical,-1,1);
-    const v=maxSpeedRef.current;const desired=[(Math.sin(y)*forward+Math.cos(y)*side)*v,vertical*v*.72,(-Math.cos(y)*forward+Math.sin(y)*side)*v];velocity.current=velocity.current.map((value,i)=>THREE.MathUtils.damp(value,desired[i],(forward||side||vertical)?5.5:2.2,dt));const nx=THREE.MathUtils.clamp(p[0]+velocity.current[0]*dt,-55,55);
+    const v=maxSpeedRef.current;const movementYaw=fpv?y+cameraYaw:y;const desired=[(Math.sin(movementYaw)*forward+Math.cos(movementYaw)*side)*v,vertical*v*.72,(-Math.cos(movementYaw)*forward+Math.sin(movementYaw)*side)*v];velocity.current=velocity.current.map((value,i)=>THREE.MathUtils.damp(value,desired[i],(forward||side||vertical)?5.5:2.2,dt));const nx=THREE.MathUtils.clamp(p[0]+velocity.current[0]*dt,-55,55);
     const nz=THREE.MathUtils.clamp(p[2]+velocity.current[2]*dt,-125,18);
     const ny=THREE.MathUtils.clamp(p[1]+velocity.current[1]*dt,1,120);
     posRef.current=[nx,ny,nz];yawRef.current=y;
@@ -204,20 +207,20 @@ export default function App(){
    frame=requestAnimationFrame(tick);
   };frame=requestAnimationFrame(tick);
   return()=>{cancelAnimationFrame(frame);window.removeEventListener('keydown',down);window.removeEventListener('keyup',up)};
- },[paused]);
- const reset=()=>{posRef.current=[0,5,4];yawRef.current=0;setPos([0,5,4]);setYaw(0);velocity.current=[0,0,0];setBattery(100);setNotice('FLIGHT RESET — READY');};
+ },[paused,fpv,cameraYaw]);
+ const reset=()=>{posRef.current=[0,5,4];yawRef.current=0;setPos([0,5,4]);setYaw(0);velocity.current=[0,0,0];setBattery(100);setScanned([]);scannedRef.current=[];setNotice('FLIGHT RESET — READY');};
  return <main className="sim-shell">
-  <Canvas shadows dpr={[1,1.5]} camera={{position:[0,9,14],fov:65}}><Suspense fallback={null}><World position={pos} yaw={yaw} fpv={fpv} paused={paused} cameraYaw={cameraYaw} cameraPitch={cameraPitch} targetRef={targetRef} targetActive={targetHealth>0&&!targetFailed}/></Suspense></Canvas>
+  <Canvas shadows dpr={[1,1.5]} camera={{position:[0,9,14],fov:65}}><Suspense fallback={null}><World position={pos} yaw={yaw} fpv={fpv} paused={paused} cameraYaw={cameraYaw} cameraPitch={cameraPitch} scanned={scanned}/></Suspense></Canvas>
   <div className="sim-top"><div className="sim-brand"><span>✦</span> SKY<span>CTRL</span><small>DRONE FLIGHT SIMULATOR</small></div><div className="sim-live"><i/> SIMULATION ONLINE <b>• TRAINING MODE</b></div><div className="sim-buttons"><button onClick={()=>setFpv(v=>!v)}><Camera size={16}/>{fpv?'CHASE CAM':'FPV VIEW'}</button><button onClick={()=>setPaused(v=>!v)}>{paused?<Play size={16}/>:<Pause size={16}/>}</button><button onClick={reset}><RotateCcw size={16}/></button></div></div>
   <section className="sim-card sim-left"><div className="sim-label">FLIGHT TELEMETRY</div><div className="sim-metric"><span>ALTITUDE <small>MAX 120 M</small></span><strong>{pos[1].toFixed(1)} <small>m</small></strong></div><div className="sim-metric"><span>GROUND SPEED</span><strong>{speed.toFixed(0)} <small>m/s</small></strong></div><div className="sim-metric"><span>HEADING</span><strong>{((yaw*180/Math.PI+360)%360).toFixed(0)}°</strong></div><div className="sim-divider"/><div className="sim-battery"><Battery size={15}/><span>BATTERY</span><b>{battery.toFixed(0)}%</b></div><div className="sim-batbar"><i style={{width:battery+'%'}}/></div><div className="sim-signal"><Signal size={14}/> GPS LOCK <b>STRONG</b></div></section>
 
   <section className="sim-card sim-speed-panel"><div className="sim-label"><Gauge size={13}/> SPEED CONTROL</div><div className="sim-speed-value">{maxSpeed.toFixed(1)} <small>m/s</small></div><input aria-label="Maximum flight speed" type="range" min="1" max="20" step=".5" value={maxSpeed} onChange={e=>setMaxSpeed(Number(e.target.value))}/><div className="sim-speed-scale"><span>1 SLOW</span><span>20 FAST</span></div><div className="sim-speed-presets">{[3,8.5,14,20].map(v=><button key={v} className={maxSpeed===v?'active':''} onClick={()=>setMaxSpeed(v)}>{v===3?'SLOW':v===8.5?'NORMAL':v===14?'FAST':'MAX'}</button>)}</div></section>
   <section className="sim-card sim-phone-panel"><div className="sim-label"><Smartphone size={13}/> PHONE LINK</div><div className="sim-phone-state"><i className={phoneConnected?'connected':''}/>{phoneConnected?'PHONE CONNECTED':'PAIR YOUR PHONE'}</div>{peerId?<><img className="sim-qr" alt="QR code to connect phone controller" src={'https://api.qrserver.com/v1/create-qr-code/?size=132x132&data='+encodeURIComponent(phoneUrl)}/><button className="sim-copy-link" onClick={copyPhoneLink}>{copied?<Check size={13}/>:<Copy size={13}/>} {copied?'COPIED':'COPY PHONE LINK'}</button><small>Quét mã QR bằng điện thoại cùng mạng internet.</small></>:<small>Đang tạo mã kết nối...</small>}</section>
 
-  <section className="sim-card sim-mission-panel"><div className="sim-label">✦ AIRSPACE INTERCEPT</div><h3>{targetHealth===0?'TARGET INTERCEPTED':targetFailed?'MISSION FAILED':'TRAINING TARGET'}</h3><p>Đánh dấu máy bay mục tiêu không người lái trước khi nó tới đường băng. Dùng FPV để căn tâm.</p><div className="mission-stats"><span>ENERGY TAGS</span><b>{3-targetHealth}/3</b><strong>{targetHealth===0?'100%':targetFailed?'0%':Math.round((3-targetHealth)/3*100)+'%'}</strong></div><div className="mission-status">{targetHealth===0?'✓ COMPLETE':targetFailed?'✕ TARGET ESCAPED':'G READY • '+targetHealth+' HITS LEFT'}</div><button className="mission-start" onClick={()=>{setTargetHealth(3);setTargetFailed(false);targetFailedRef.current=false;targetRef.current.set(0,8,-92);setNotice('NEW TRAINING TARGET INBOUND');}}>RESET MISSION</button></section>
-  <section className="sim-card sim-minimap"><div className="sim-label">MINI MAP <span>LIVE GPS</span></div><svg viewBox="0 0 180 125" role="img" aria-label="Mini map showing drone, target and runway"><path d="M90 5V120M10 62H170" stroke="#ffffff18" strokeDasharray="3 4"/><path d="M76 14L104 14L104 110L76 110Z" fill="#738c96" opacity=".35"/><path d="M90 18V106" stroke="#e5f4fa" strokeWidth="2" strokeDasharray="7 6"/><path d="M55 108L125 108" stroke="#f2c16c" strokeWidth="4"/><circle cx={90+pos[0]*.75} cy={Math.max(8,Math.min(118,30+pos[2]*.7))} r="5" fill="#62e7ef" stroke="#fff" strokeWidth="1.5"/><path d={`M${90+pos[0]*.75} ${Math.max(8,Math.min(118,30+pos[2]*.7))-9}l-4 8h8z`} fill="#62e7ef"/><circle cx="90" cy={Math.max(8,Math.min(118,30+targetRef.current.z*.7))} r="4" fill="#ffb84e"/><text x="8" y="12" fill="#b9d5df" fontSize="7">N</text><text x="130" y="119" fill="#f2c16c" fontSize="7">RUNWAY</text></svg><small>CYAN: DRONE • AMBER: TRAINING TARGET</small></section>
+  <section className="sim-card sim-mission-panel"><div className="sim-label">✦ AIRPORT SCAN MISSION</div><h3>{scanned.length===3?'MISSION COMPLETE':'VERIFY 3 AIRCRAFT'}</h3><p>Sân bay có 20 máy bay. Tìm 3 chiếc có đèn màu cam và quét xác nhận bằng nút G.</p><div className="mission-stats"><span>VERIFIED</span><b>{scanned.length}/3</b><strong>{Math.round(scanned.length/3*100)}%</strong></div><div className="mission-status">{scanned.length===3?'✓ ALL 3 AIRCRAFT VERIFIED':'G = SCAN • '+(3-scanned.length)+' LEFT'}</div><small className="mission-hint">GỢI Ý: Nhấn C bật FPV → kéo chuột căn tâm vào đèn cam → nhấn G. Bay gần hơn nếu chưa quét được.</small><button className="mission-start" onClick={()=>{setScanned([]);scannedRef.current=[];setNotice('MISSION RESET — FIND THE 3 AMBER AIRCRAFT');}}>RESET MISSION</button></section>
+  <section className="sim-card sim-minimap"><div className="sim-label">MINI MAP <span>LIVE GPS</span></div><svg viewBox="0 0 180 125" role="img" aria-label="Mini map showing drone, target and runway"><path d="M90 5V120M10 62H170" stroke="#ffffff18" strokeDasharray="3 4"/><path d="M76 14L104 14L104 110L76 110Z" fill="#738c96" opacity=".35"/><path d="M90 18V106" stroke="#e5f4fa" strokeWidth="2" strokeDasharray="7 6"/><path d="M55 108L125 108" stroke="#f2c16c" strokeWidth="4"/><circle cx={90+pos[0]*.75} cy={Math.max(8,Math.min(118,30+pos[2]*.7))} r="5" fill="#62e7ef" stroke="#fff" strokeWidth="1.5"/><path d={`M${90+pos[0]*.75} ${Math.max(8,Math.min(118,30+pos[2]*.7))-9}l-4 8h8z`} fill="#62e7ef"/>{AIRCRAFT_STANDS.map((a,i)=><circle key={i} cx={90+a.x*.75} cy={Math.max(8,Math.min(118,30+a.z*.7))} r={[2,9,17].includes(i)?3.2:1.8} fill={[2,9,17].includes(i)?(scanned.includes(i)?"#5ee0a0":"#ffb84e"):"#a9bbc4"}/>) }<text x="8" y="12" fill="#b9d5df" fontSize="7">N</text><text x="130" y="119" fill="#f2c16c" fontSize="7">RUNWAY</text></svg><small>CYAN: DRONE • AMBER: SCAN TARGETS</small></section>
   <div className="sim-notice">{notice}</div>
-  <div className="sim-controls"><div className="sim-label">CONTROLS</div><div><kbd>G</kbd><span>ENERGY PULSE</span></div><div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>MOVE</span></div><div><kbd>SPACE</kbd><kbd>SHIFT</kbd><span>UP / DOWN</span></div><div><kbd>Q</kbd><kbd>E</kbd><span>YAW LEFT / RIGHT</span></div><div><kbd>C</kbd><span>FPV / CHASE CAMERA</span></div><div><span>FPV: DRAG MOUSE TO LOOK</span></div><div><kbd>P</kbd><span>PAUSE</span></div></div>
+  <div className="sim-controls"><div className="sim-label">CONTROLS</div><div><kbd>G</kbd><span>SCAN AIRCRAFT</span></div><div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>MOVE</span></div><div><kbd>SPACE</kbd><kbd>SHIFT</kbd><span>UP / DOWN</span></div><div><kbd>Q</kbd><kbd>E</kbd><span>YAW LEFT / RIGHT</span></div><div><kbd>C</kbd><span>FPV / CHASE CAMERA</span></div><div><span>FPV: DRAG MOUSE TO LOOK</span></div><div><kbd>P</kbd><span>PAUSE</span></div></div>
   <div className="sim-crosshair">＋</div>
   {paused&&<div className="sim-pause"><div><div className="sim-label">SIMULATION PAUSED</div><h1>FLIGHT <span>PAUSED</span></h1><button onClick={()=>setPaused(false)}><Play size={16}/> RESUME FLIGHT</button></div></div>}
   <div className="sim-footer"><Wind size={14}/> WIND 3.2 M/S <span>•</span> CLEAR SKY <span>•</span> TRAINING AIRSPACE</div>
