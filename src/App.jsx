@@ -1,228 +1,116 @@
-import React, { Suspense, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Stars, Float, Sparkles, Html } from '@react-three/drei';
+import { Stars, Float, Text } from '@react-three/drei';
 import * as THREE from 'three';
-import { Battery, Camera, Gauge, Navigation, Pause, Play, RotateCcw, Signal, Wind, Smartphone, Wifi, Copy, Check } from 'lucide-react';
+import { Shield, Swords, Heart, Zap, RotateCcw, Pause, Play, Trophy } from 'lucide-react';
 
-function loadPeerJS(){
- return new Promise((resolve,reject)=>{
-  if(window.Peer)return resolve(window.Peer);
-  const old=document.querySelector('script[data-peerjs]');
-  if(old){old.addEventListener('load',()=>resolve(window.Peer),{once:true});old.addEventListener('error',reject,{once:true});return;}
-  const script=document.createElement('script');script.src='https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js';script.dataset.peerjs='1';
-  script.onload=()=>window.Peer?resolve(window.Peer):reject(new Error('PeerJS unavailable'));
-  script.onerror=()=>reject(new Error('Could not load PeerJS'));document.head.appendChild(script);
+const START_ENEMIES = [
+ {id:1,x:-17,z:-17,hp:100,max:100,type:'hero'},
+ {id:2,x:18,z:-23,hp:100,max:100,type:'hero'},
+ {id:3,x:0,z:-31,hp:100,max:100,type:'hero'},
+ {id:4,x:-8,z:-6,hp:65,max:65,type:'minion'},
+ {id:5,x:9,z:-8,hp:65,max:65,type:'minion'},
+ {id:6,x:0,z:-13,hp:65,max:65,type:'minion'}
+];
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+
+function Arena({player,enemies,allyMinions,enemyCoreHp,playerHp,fx}) {
+ const camera=useRef();
+ useFrame((state,dt)=>{
+  const desired=new THREE.Vector3(player.x,38,player.z+34);
+  state.camera.position.lerp(desired,1-Math.exp(-3*dt));
+  state.camera.lookAt(player.x,0,player.z-2);
  });
+ return <>
+  <color attach="background" args={['#101c2c']}/><fog attach="fog" args={['#101c2c',65,135]}/>
+  <ambientLight intensity={1.25}/><hemisphereLight args={['#bdeaff','#294b38',1.4]}/>
+  <directionalLight position={[-25,45,15]} intensity={2.1} castShadow shadow-mapSize={[2048,2048]}/>
+  <Stars radius={150} depth={55} count={1000} factor={2} fade speed={.15}/>
+  <mesh rotation={[-Math.PI/2,0,0]} position={[0,-.35,0]} receiveShadow><planeGeometry args={[120,100]}/><meshStandardMaterial color="#315844" roughness={1}/></mesh>
+  <gridHelper args={[120,30,'#66866c','#3e654c']} position={[0,-.32,0]}/>
+  <mesh rotation={[-Math.PI/2,0,0]} position={[0,-.29,0]}><planeGeometry args={[13,100]}/><meshStandardMaterial color="#7b795f" roughness={1}/></mesh>
+  <mesh rotation={[-Math.PI/2,0,0]} position={[0,-.26,0]}><planeGeometry args={[1.1,100]}/><meshStandardMaterial color="#d9d2a2"/></mesh>
+  {Array.from({length:16},(_,i)=><group key={'tree'+i} position={[(i%2?1:-1)*(22+(i%4)*5),0,-43+i*5.7]}><mesh position={[0,1.4,0]}><cylinderGeometry args={[.35,.5,2.8,7]}/><meshStandardMaterial color="#554333"/></mesh><mesh position={[0,3.5,0]}><coneGeometry args={[2.2,4.2,8]}/><meshStandardMaterial color={i%2?'#286044':'#39734b'}/></mesh></group>)}
+  {[-1,1].map(side=><group key={side}>{[-29,-8,15].map((z,i)=><group key={z} position={[side*28,0,z]}><mesh position={[0,1.1,0]}><boxGeometry args={[5,2.2,5]}/><meshStandardMaterial color="#455b70"/></mesh><mesh position={[0,2.6,0]}><coneGeometry args={[3.2,2.2,4]}/><meshStandardMaterial color="#5b7790"/></mesh></group>)}</group>)}
+  <Base x={0} z={39} color="#48c5ff" hp={100} label="ALLIED CORE"/>
+  <Base x={0} z={-39} color="#ff626f" hp={enemyCoreHp} label="ENEMY CORE"/>
+  {[-1,1].map((side,i)=><Tower key={i} x={side*13} z={i===0?22:-22} color={i===0?'#48c5ff':'#ff626f'}/>)}
+  <Hero x={player.x} z={player.z} color="#4dd7ff" hp={playerHp} player/>
+  {enemies.map(e=><Hero key={e.id} x={e.x} z={e.z} color={e.type==='hero'?'#ff6576':'#e8a95c'} hp={e.hp/e.max*100} small={e.type==='minion'}/>)}
+  {allyMinions.map(e=><Hero key={'a'+e.id} x={e.x} z={e.z} color="#72e5bd" hp={e.hp} small/>)}
+  {fx&&<SpellEffect fx={fx}/>}
+  <mesh rotation={[-Math.PI/2,0,0]} position={[0,-.2,0]}><ringGeometry args={[5.4,5.65,64]}/><meshBasicMaterial color="#8cecff" transparent opacity={.55}/></mesh>
+ </>;
 }
-function PhoneController({peerId}){
- const [status,setStatus]=useState('CONNECTING');
- const [speed,setSpeed]=useState(15);
- const connRef=useRef(null), controls=useRef({forward:0,side:0,vertical:0,yaw:0});
- useEffect(()=>{
-  let peer, timer;
-  loadPeerJS().then(Peer=>{
-   peer=new Peer();
-   peer.on('open',()=>{const c=peer.connect(peerId,{reliable:true});connRef.current=c;c.on('open',()=>setStatus('CONNECTED'));c.on('close',()=>setStatus('DISCONNECTED'));c.on('error',()=>setStatus('CONNECTION ERROR'));});
-   peer.on('error',()=>setStatus('CONNECTION ERROR'));
-   timer=setInterval(()=>{if(connRef.current?.open)connRef.current.send({...controls.current,speed});},40);
-  }).catch(()=>setStatus('NETWORK ERROR'));
-  return()=>{clearInterval(timer);try{peer?.destroy();}catch{}};
- },[peerId,speed]);
- const press=(key,value)=>e=>{e.preventDefault();controls.current[key]=value;};
- const pad=(label,key,value,cls='')=><button className={'phone-pad '+cls} onPointerDown={press(key,value)} onPointerUp={press(key,0)} onPointerLeave={press(key,0)} onContextMenu={e=>e.preventDefault()}>{label}</button>;
- return <main className="phone-controller"><header><div className="phone-logo">✦ SKY<span>CTRL</span></div><div className={'phone-status '+(status==='CONNECTED'?'is-connected':'')}>{status}</div></header>
- <section className="phone-speed"><label>FLIGHT SPEED <b>{speed.toFixed(1)} m/s</b></label><input type="range" min="1" max="50" step="1" value={speed} onChange={e=>setSpeed(Number(e.target.value))}/><div><span>SLOW</span><span>FAST</span></div></section>
- <section className="phone-flight"><div className="phone-section-title">MOVEMENT</div><div className="phone-pad-grid">{pad('▲','forward',1,'up')}{pad('◀','side',-1)}{pad('▼','forward',-1)}{pad('▶','side',1)}</div>
- <div className="phone-section-title">ALTITUDE & ROTATION</div><div className="phone-actions">{pad('＋ UP','vertical',1)}{pad('－ DOWN','vertical',-1)}{pad('↶ YAW','yaw',-1)}{pad('YAW ↷','yaw',1)}</div></section>
- <p className="phone-hint">Giữ nút để điều khiển • Thả tay để dừng</p></main>;
+function Base({x,z,color,hp,label}) {
+ return <group position={[x,0,z]}><mesh position={[0,2,0]}><cylinderGeometry args={[4.5,5.2,4,8]}/><meshStandardMaterial color="#34495c" metalness={.5}/></mesh><mesh position={[0,5,0]}><octahedronGeometry args={[2.5,1]}/><meshStandardMaterial color={color} emissive={color} emissiveIntensity={1.1}/></mesh><mesh position={[0,7.5,0]}><sphereGeometry args={[.45,16,12]}/><meshBasicMaterial color={color}/></mesh><Text position={[0,9,0]} fontSize={1.15} color="white" anchorX="center">{label}</Text><mesh position={[0,8.2,0]}><boxGeometry args={[8,.25,.25]}/><meshBasicMaterial color="#182638"/></mesh><mesh position={[-4+8*hp/100,8.2,.16]}><boxGeometry args={[8*hp/100,.18,.08]}/><meshBasicMaterial color={color}/></mesh></group>;
 }
-
-function World({ position, yaw, fpv, paused, cameraYaw, cameraPitch, scanned }) {
-  const drone = useRef();
-  const cameraTarget = useRef(new THREE.Vector3());
-  useFrame((state, dt) => {
-    if (!drone.current) return;
-    drone.current.position.lerp(new THREE.Vector3(...position), 1 - Math.exp(-10 * dt));
-    drone.current.rotation.y = THREE.MathUtils.damp(drone.current.rotation.y, yaw, 7, dt);
-    drone.current.rotation.z = THREE.MathUtils.damp(drone.current.rotation.z, THREE.MathUtils.clamp(-Math.sin(yaw) * 0.13, -.18, .18), 4, dt);
-
-    const target = drone.current.position;
-    const smoothYaw = drone.current.rotation.y;
-    if (fpv) {
-      // Camera sits just ahead of the drone nose; mouse drag controls its gimbal.
-      const forwardOffset = new THREE.Vector3(0, -.025, -1.12).applyAxisAngle(new THREE.Vector3(0,1,0), smoothYaw);
-      const desired = target.clone().add(forwardOffset);
-      state.camera.position.lerp(desired, 1 - Math.exp(-12 * dt));
-      const lookYaw = smoothYaw + cameraYaw;
-      const cp = Math.cos(cameraPitch);
-      const direction = new THREE.Vector3(Math.sin(lookYaw) * cp, Math.sin(cameraPitch), -Math.cos(lookYaw) * cp);
-      cameraTarget.current.copy(state.camera.position).add(direction.multiplyScalar(35));
-      state.camera.lookAt(cameraTarget.current);
-    } else {
-      const offset = new THREE.Vector3(0, 4.2, 9.5).applyAxisAngle(new THREE.Vector3(1,0,0), cameraPitch).applyAxisAngle(new THREE.Vector3(0,1,0), smoothYaw + cameraYaw);
-      const desired = target.clone().add(offset);
-      state.camera.position.lerp(desired, 1 - Math.exp(-5.0*dt));
-      cameraTarget.current.copy(target).add(new THREE.Vector3(0, .2, 0));
-      state.camera.lookAt(cameraTarget.current);
-    }
-  });
-  return <>
-    <color attach="background" args={['#a9c9d8']} />
-    <fog attach="fog" args={['#a9c9d8', 45, 155]} />
-    <ambientLight intensity={1.15} />
-    <hemisphereLight args={['#d8f2ff','#526b49',1.1]} />
-    <directionalLight position={[-30,45,20]} intensity={2.2} castShadow shadow-mapSize={[2048,2048]} />
-    <Stars radius={180} depth={80} count={1600} factor={2.4} fade speed={0.2}/>
-    <mesh position={[-48,38,-115]}><sphereGeometry args={[13,32,24]}/><meshBasicMaterial color="#ffd9a1"/></mesh>
-    {Array.from({length:9},(_,i)=><group key={'cloud'+i} position={[Math.sin(i*8)*42,15+(i%3)*5,-18-i*15]}>{[0,1,2].map(j=><mesh key={j} position={[(j-1)*2.4,Math.sin(j*2+i)*.5,0]} scale={[1.8,1,.9]}><sphereGeometry args={[1,16,12]}/><meshStandardMaterial color="#e9f5f4" transparent opacity={.34} roughness={1}/></mesh>)}</group>)}
-    {Array.from({length:32},(_,i)=><group key={'ridge'+i} position={[(i-16)*9,-.5,-118-(i%4)*5]}><mesh><coneGeometry args={[8+(i%5)*2,12+(i%4)*4,5]}/><meshStandardMaterial color={i%2?'#456c70':'#567b7b'} roughness={1}/></mesh><mesh position={[0,3,0]}><coneGeometry args={[4+(i%3),7,5]}/><meshStandardMaterial color="#78938b" roughness={1}/></mesh></group>)}
-    <mesh rotation={[-Math.PI/2,0,0]} position={[80,-.5,-130]} receiveShadow>
-      <planeGeometry args={[600,600]} /><meshStandardMaterial color="#55745e" roughness={1}/>
-    </mesh>
-    <gridHelper args={[600,120,'#b7d0bb','#78947d']} position={[80,-.48,-130]}/>
-    {Array.from({length:34},(_,i)=>[-1,1].map(side=><mesh key={'edge'+i+'-'+side} position={[side*7,.05,-i*4-8]}><cylinderGeometry args={[.09,.09,.12,12]}/><meshStandardMaterial color="#8af5ff" emissive="#37ddec" emissiveIntensity={2.2}/></mesh>))}
-    {Array.from({length:38},(_,i)=>{
-      const x=Math.sin(i*12.3)*42, z=-i*4-10, h=4+(i%5)*2.5;
-      return <group key={i} position={[x,h/2,z]}>
-        <mesh castShadow><cylinderGeometry args={[.25,.55,h,7]}/><meshStandardMaterial color="#526b65"/></mesh>
-        <mesh position={[0,h*.45,0]} castShadow><coneGeometry args={[1.8+(i%3),h*.48,7]}/><meshStandardMaterial color={i%2?'#527b66':'#64876b'}/></mesh>
-      </group>;
-    })}
-    <mesh rotation={[-Math.PI/2,0,0]} position={[0,-.43,-52]}><planeGeometry args={[13,145]}/><meshStandardMaterial color="#303f42" roughness={.95}/></mesh>
-    {Array.from({length:70},(_,i)=>{const x=Math.sin(i*8.71)*48,z=-i*1.85-7,h=3.5+(i%6)*1.5;return <group key={'forest'+i} position={[x,0,z]}><mesh position={[0,h*.32,0]} castShadow><cylinderGeometry args={[.18,.32,h*.65,7]}/><meshStandardMaterial color="#584b3c"/></mesh><mesh position={[0,h*.83,0]} castShadow><coneGeometry args={[1.2+(i%4)*.3,h*.75,8]}/><meshStandardMaterial color={i%3===0?'#315c50':'#3e7059'}/></mesh></group>;})}
-    {Array.from({length:18},(_,i)=>{const x=-42+(i%9)*10,z=-92-Math.floor(i/9)*15,h=7+(i%5)*3;return <group key={'tower'+i} position={[x,h/2,z]}><mesh castShadow><boxGeometry args={[5,h,5]}/><meshStandardMaterial color={i%2?'#647d8c':'#536c7c'} metalness={.35} roughness={.5}/></mesh>{Array.from({length:Math.floor(h/2)},(_,r)=><mesh key={r} position={[0,-h/2+1.3+r*1.8,2.53]}><boxGeometry args={[3.7,.55,.05]}/><meshStandardMaterial color="#72d8e8" emissive="#276e8b" emissiveIntensity={.55}/></mesh>)}</group>;})}
-    <group position={[-17,0,-28]}><mesh position={[0,.2,0]}><cylinderGeometry args={[5,5,.4,32]}/><meshStandardMaterial color="#4c5c66" metalness={.4}/></mesh><mesh position={[0,1.3,0]}><cylinderGeometry args={[1.3,1.8,2.2,12]}/><meshStandardMaterial color="#b5c5cc" metalness={.7}/></mesh><mesh position={[0,2.5,0]}><sphereGeometry args={[.8,20,16]}/><meshStandardMaterial color="#55d9e7" emissive="#168c9a" emissiveIntensity={.8}/></mesh></group>
-    <group position={[23,0,-74]}><mesh position={[0,1,0]}><boxGeometry args={[13,2,8]}/><meshStandardMaterial color="#677984" metalness={.4}/></mesh>{[-4,4].map(x=><mesh key={x} position={[x,2.2,0]}><cylinderGeometry args={[.2,.2,2.5,12]}/><meshStandardMaterial color="#e3b75c" emissive="#926c28" emissiveIntensity={.4}/></mesh>)}</group>
-    <mesh rotation={[-Math.PI/2,0,0]} position={[27,-.35,-38]}><circleGeometry args={[12,48]}/><meshStandardMaterial color="#367f91" roughness={.18} transparent opacity={.9}/></mesh>
-    <group ref={drone}>
-      {/* Compact camera drone inspired by mobile driving-game drones */}
-      <group visible={!fpv}><mesh castShadow scale={[1,.72,1.35]}><capsuleGeometry args={[.34,.55,6,12]}/><meshStandardMaterial color="#252d36" metalness={.72} roughness={.27}/></mesh>
-      <mesh position={[0,.12,-.08]} scale={[.72,.22,1.05]} castShadow><boxGeometry args={[1,.42,1]}/><meshStandardMaterial color="#e8edf0" metalness={.35} roughness={.32}/></mesh>
-      <mesh position={[0,.02,-.48]}><boxGeometry args={[.56,.12,.32]}/><meshStandardMaterial color="#111a23" metalness={.7}/></mesh>
-      {[[-1,-1],[1,-1],[-1,1],[1,1]].map(([x,z],i)=><group key={i} position={[x*.78,.03,z*.72]}>
-        <mesh rotation={[0,0,-x*.16]} position={[-x*.16,0,-z*.12]} castShadow><boxGeometry args={[.19,.13,1.18]}/><meshStandardMaterial color="#343f49" metalness={.7} roughness={.3}/></mesh>
-        <mesh position={[0,.12,0]}><cylinderGeometry args={[.23,.2,.17,24]}/><meshStandardMaterial color="#171f28" metalness={.8} roughness={.24}/></mesh>
-        <Rotor position={[0,.23,0]}/>
-        <mesh position={[0,-.22,-z*.08]}><cylinderGeometry args={[.035,.045,.34,10]}/><meshStandardMaterial color="#aebbc4" metalness={.75}/></mesh>
-        <mesh position={[0,.02,z*.17]}><sphereGeometry args={[.075,12,10]}/><meshStandardMaterial color={i%2?'#ff514d':'#55eaff'} emissive={i%2?'#e52a27':'#18b9dc'} emissiveIntensity={1.7}/></mesh>
-      </group>)}
-      <group position={[0,-.22,-.76]}>
-        <mesh position={[0,-.06,0]}><boxGeometry args={[.34,.2,.28]}/><meshStandardMaterial color="#4b5965" metalness={.75}/></mesh>
-        <mesh position={[0,-.06,-.16]}><cylinderGeometry args={[.115,.115,.09,24]}/><meshStandardMaterial color="#101820" metalness={.55}/></mesh>
-        <mesh position={[0,-.06,-.21]}><circleGeometry args={[.073,24]}/><meshBasicMaterial color="#43d9ff"/></mesh>
-      </group>
-      {[-1,1].map(x=><group key={x} position={[x*.48,-.3,.18]}><mesh><cylinderGeometry args={[.035,.035,.45,10]}/><meshStandardMaterial color="#303c46" metalness={.7}/></mesh><mesh position={[0,-.22,.12]} rotation={[Math.PI/2,0,0]}><cylinderGeometry args={[.035,.035,.48,10]}/><meshStandardMaterial color="#303c46" metalness={.7}/></mesh></group>)}
-      <pointLight position={[0,0,-.9]} color="#40eaff" intensity={1.1} distance={3}/></group>
-    </group>
-    <group position={[150,0,-190]}><AirportScene scanned={scanned}/></group>
-    <Float speed={1.2} floatIntensity={.15}><mesh position={[-22,14,-65]}><sphereGeometry args={[7,32,32]}/><meshStandardMaterial color="#d7e4df" roughness={1}/></mesh></Float>
-    <Sparkles count={100} scale={[65,25,130]} position={[0,8,-55]} size={1.4} speed={.2} color="#ffffff"/>
-  </>;
+function Tower({x,z,color}) {
+ return <group position={[x,0,z]}><mesh position={[0,1.7,0]}><cylinderGeometry args={[1.3,1.8,3.4,8]}/><meshStandardMaterial color="#7e929e" metalness={.5}/></mesh><mesh position={[0,3.9,0]}><octahedronGeometry args={[1.5]}/><meshStandardMaterial color={color} emissive={color} emissiveIntensity={.9}/></mesh><mesh position={[0,5.4,0]}><sphereGeometry args={[.35,16,12]}/><meshBasicMaterial color={color}/></mesh></group>;
 }
-const AIRCRAFT_STANDS=Array.from({length:20},(_,i)=>({x:(i%5-2)*22,z:-72-Math.floor(i/5)*20,target:[2,9,17].includes(i)}));
-function AirportScene({scanned}) {
- return <group>
-  <mesh rotation={[-Math.PI/2,0,0]} position={[0,-.39,-105]}><planeGeometry args={[260,145]}/><meshStandardMaterial color="#777f82" roughness={.95}/></mesh>
-  <mesh rotation={[-Math.PI/2,0,0]} position={[0,-.37,-125]}><planeGeometry args={[24,230]}/><meshStandardMaterial color="#343d43"/></mesh>
-  {Array.from({length:18},(_,i)=><mesh key={i} rotation={[-Math.PI/2,0,0]} position={[0,-.35,-52-i*6]}><planeGeometry args={[.45,3]}/><meshBasicMaterial color="#f3f4e9"/></mesh>)}
-  <mesh position={[0,2,-55]}><boxGeometry args={[110,5,18]}/><meshStandardMaterial color="#b9cbd0"/></mesh>
-  <mesh position={[0,4.8,-55]}><boxGeometry args={[110,.8,18]}/><meshStandardMaterial color="#4a8494" emissive="#24515c"/></mesh>
-  {AIRCRAFT_STANDS.map((a,i)=>{const marked=a.target,done=scanned.includes(i),paint=marked?(done?'#5ee0a0':'#ffb84e'):'#dce5eb';return <group key={i} position={[a.x,.45,a.z]} rotation={[0,Math.PI,0]}>
-   <mesh rotation={[Math.PI/2,0,0]}><capsuleGeometry args={[.42,3.5,5,10]}/><meshStandardMaterial color={paint} metalness={.35}/></mesh>
-   <mesh><boxGeometry args={[10,.12,1.05]}/><meshStandardMaterial color={marked?'#d48a31':'#718b9a'}/></mesh>
-   <mesh position={[0,.32,1.55]}><boxGeometry args={[3,.1,1.1]}/><meshStandardMaterial color={paint}/></mesh>
-   <mesh position={[0,.05,-2.25]}><coneGeometry args={[.35,.9,10]}/><meshStandardMaterial color={paint}/></mesh>
-   {marked&&<group position={[0,3.1,0]}><mesh><sphereGeometry args={[.55,12,10]}/><meshBasicMaterial color={done?'#5ee0a0':'#ffad42'}/></mesh><mesh position={[0,1.2,0]}><cylinderGeometry args={[.035,.035,1.5,8]}/><meshBasicMaterial color={done?'#5ee0a0':'#ffad42'}/></mesh></group>}
-  </group>})}
+function Hero({x,z,color,hp,player,small}) {
+ return <group position={[x,0,z]} scale={small?.72:1}>
+  <mesh position={[0,.95,0]} castShadow><capsuleGeometry args={[.58,.85,5,10]}/><meshStandardMaterial color={color} metalness={.3} roughness={.38}/></mesh>
+  <mesh position={[0,1.95,0]} castShadow><sphereGeometry args={[.48,18,16]}/><meshStandardMaterial color={player?'#d9f6ff':'#f2d5c2'} roughness={.55}/></mesh>
+  <mesh position={[0,2.05,-.08]}><torusGeometry args={[.52,.12,8,20]}/><meshStandardMaterial color={color} metalness={.7}/></mesh>
+  <mesh position={[0,.18,0]} rotation={[-Math.PI/2,0,0]}><ringGeometry args={[.85,1,28]}/><meshBasicMaterial color={color} transparent opacity={.8}/></mesh>
+  <mesh position={[0,2.75,0]}><boxGeometry args={[1.5,.12,.08]}/><meshBasicMaterial color="#172331"/></mesh>
+  <mesh position={[-.75+1.5*clamp(hp,0,100)/100,2.75,.05]}><boxGeometry args={[1.5*clamp(hp,0,100)/100,.1,.05]}/><meshBasicMaterial color={hp>35?'#62e6a8':'#ff5b70'}/></mesh>
  </group>;
 }
-function Rotor({position}) {
- const ref=useRef();
- useFrame((s)=>{if(ref.current)ref.current.rotation.y=s.clock.elapsedTime*28;});
- return <group ref={ref} position={position}><mesh><cylinderGeometry args={[.08,.08,.12,12]}/><meshStandardMaterial color="#d9e6ee" metalness={.8}/></mesh><mesh position={[0,.08,0]}><boxGeometry args={[1.12,.025,.075]}/><meshStandardMaterial color="#263747" metalness={.5}/></mesh></group>;
+function SpellEffect({fx}) {
+ return <group position={[fx.x,.35,fx.z]}><Float speed={4} floatIntensity={.4}><mesh><sphereGeometry args={[fx.kind==='R'?5:fx.kind==='Q'?3.2:1.4,24,16]}/><meshBasicMaterial color={fx.kind==='R'?'#e7a6ff':'#56eaff'} transparent opacity={.3}/></mesh><mesh><ringGeometry args={[fx.kind==='R'?4:2,fx.kind==='R'?4.5:2.4,48]}/><meshBasicMaterial color="#d7fbff" transparent opacity={.85}/></mesh></Float></group>;
 }
 
 export default function App(){
- const controllerId=new URLSearchParams(window.location.search).get('controller');
- if(controllerId)return <PhoneController peerId={controllerId}/>;
- const [pos,setPos]=useState([0,5,4]); const posRef=useRef([0,5,4]); const velocity=useRef([0,0,0]);
- const [yaw,setYaw]=useState(0); const yawRef=useRef(0); const keys=useRef({});
- const [paused,setPaused]=useState(false),[fpv,setFpv]=useState(false);
- const [cameraYaw,setCameraYaw]=useState(0),[cameraPitch,setCameraPitch]=useState(0);
- const cameraDrag=useRef({active:false,x:0,y:0});
- const [battery,setBattery]=useState(100),[speed,setSpeed]=useState(0);
- const [scanned,setScanned]=useState([]);
- const scannedRef=useRef([]);scannedRef.current=scanned;
- const lastScan=useRef(0);
- const [maxSpeed,setMaxSpeed]=useState(15),[peerId,setPeerId]=useState(''),[phoneConnected,setPhoneConnected]=useState(false),[copied,setCopied]=useState(false);
- const remote=useRef({forward:0,side:0,vertical:0,yaw:0}); const maxSpeedRef=useRef(15);maxSpeedRef.current=maxSpeed;
+ const [player,setPlayer]=useState({x:0,z:28});
+ const playerRef=useRef(player);
+ const [hp,setHp]=useState(100),hpRef=useRef(100);
+ const [enemies,setEnemies]=useState(START_ENEMIES),enemyRef=useRef(START_ENEMIES);
+ const [allyMinions,setAllyMinions]=useState([]);
+ const [kills,setKills]=useState(0),[coreHp,setCoreHp]=useState(100);
+ const [fx,setFx]=useState(null),[notice,setNotice]=useState('BẮT ĐẦU TRẬN ĐẤU • PHÁ HỦY NHÀ CHÍNH ĐỊCH');
+ const [cool,setCool]=useState({Q:0,E:0,R:0}),coolRef=useRef({Q:0,E:0,R:0});
+ const [paused,setPaused]=useState(false),[dead,setDead]=useState(false),[won,setWon]=useState(false);
+ const keys=useRef({}),lastAttack=useRef(0),lastSpawn=useRef(0),fxTimer=useRef(null);
  useEffect(()=>{
-  let peer;
-  loadPeerJS().then(Peer=>{
-   peer=new Peer();
-   peer.on('open',id=>setPeerId(id));
-   peer.on('connection',conn=>{
-    conn.on('open',()=>setPhoneConnected(true));
-    conn.on('data',data=>{if(data&&typeof data==='object'){remote.current={forward:data.forward||0,side:data.side||0,vertical:data.vertical||0,yaw:data.yaw||0};if(Number.isFinite(data.speed))setMaxSpeed(data.speed);}});
-    conn.on('close',()=>{setPhoneConnected(false);remote.current={forward:0,side:0,vertical:0,yaw:0};});
-   });
-   peer.on('error',()=>setNotice('PHONE CONNECTION ERROR — RELOAD TO RETRY'));
-  }).catch(()=>setNotice('PHONE LINK UNAVAILABLE — CHECK INTERNET'));
-  return()=>{try{peer?.destroy();}catch{}};
- },[]);
- const phoneUrl=peerId?window.location.origin+window.location.pathname+'?controller='+encodeURIComponent(peerId):'';
- const copyPhoneLink=async()=>{try{await navigator.clipboard.writeText(phoneUrl);setCopied(true);setTimeout(()=>setCopied(false),1800);}catch{setNotice('COPY FAILED — USE QR CODE');}};
- useEffect(()=>{
-  const canvas=document.querySelector('.sim-shell canvas');
-  if(!canvas)return;
-  const drag=cameraDrag.current;
-  const down=e=>{if(e.button!==0)return;drag.active=true;drag.x=e.clientX;drag.y=e.clientY;canvas.style.cursor='grabbing';e.preventDefault();};
-  const move=e=>{if(!drag.active)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.x=e.clientX;drag.y=e.clientY;setCameraYaw(v=>v-dx*.0045);setCameraPitch(v=>THREE.MathUtils.clamp(v-dy*.0045,-1.25,1.1));};
-  const up=()=>{drag.active=false;canvas.style.cursor='grab';};
-  canvas.style.cursor='grab';
-  canvas.addEventListener('pointerdown',down);
-  window.addEventListener('pointermove',move);
-  window.addEventListener('pointerup',up);
-  return()=>{canvas.removeEventListener('pointerdown',down);window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);canvas.style.cursor='';drag.active=false;};
- },[fpv]);
- const [notice,setNotice]=useState('READY TO FLY — CHECK YOUR SURROUNDINGS');
- useEffect(()=>{
-  const down=e=>{const k=e.key.toLowerCase();if([' ','arrowup','arrowdown','arrowleft','arrowright'].includes(k))e.preventDefault();keys.current[k]=true;if(k==='p'||k==='escape')setPaused(v=>!v);if(k==='c')setFpv(v=>!v);};
+  const down=e=>{const k=e.key.toLowerCase();if(['w','a','s','d',' ','q','e','r','j'].includes(k))e.preventDefault();keys.current[k]=true;if(k==='p')setPaused(v=>!v);if(k==='q'||k==='e'||k==='r')cast(k.toUpperCase());};
   const up=e=>{keys.current[e.key.toLowerCase()]=false;};
   window.addEventListener('keydown',down);window.addEventListener('keyup',up);
-  let frame,last=performance.now(),ui=0;
-  const tick=now=>{const dt=Math.min((now-last)/1000,.04);last=now;
-   if(!paused){const k=keys.current;let p=posRef.current;let y=yawRef.current;
-    if(k.g && now-lastScan.current>650 && scannedRef.current.length<3){lastScan.current=now;const candidates=AIRCRAFT_STANDS.map((a,i)=>({i,dx:a.x+150-p[0],dz:a.z-190-p[2]})).filter(a=>[2,9,17].includes(a.i)&&!scannedRef.current.includes(a.i)).map(a=>({...a,distance:Math.hypot(a.dx,a.dz),dot:(a.dx*Math.sin(y+cameraYaw)+a.dz*(-Math.cos(y+cameraYaw)))/(Math.hypot(a.dx,a.dz)||1)})).sort((a,b)=>a.distance-b.distance);const hit=candidates.find(a=>a.distance<115&&a.dot>.91);if(hit){const next=[...scannedRef.current,hit.i];scannedRef.current=next;setScanned(next);setNotice('AIRCRAFT '+next.length+'/3 VERIFIED — GOOD SCAN');}else setNotice('GỢI Ý: BẬT FPV, KÉO CHUỘT ĐƯA TÂM NGẮM VÀO MÁY BAY CÓ ĐÈN CAM');}
-    y+=((k.q?1:0)-(k.e?1:0)+remote.current.yaw)*dt*1.5;
-    const forward=THREE.MathUtils.clamp((((k.w||k.arrowup)?1:0)-((k.s||k.arrowdown)?1:0))+remote.current.forward,-1,1);
-    const side=THREE.MathUtils.clamp((((k.d||k.arrowright)?1:0)-((k.a||k.arrowleft)?1:0))+remote.current.side,-1,1);
-    const vertical=THREE.MathUtils.clamp((((k[' ']||k.r)?1:0)-((k.shift||k.f)?1:0))+remote.current.vertical,-1,1);
-    const v=maxSpeedRef.current;const movementYaw=fpv?y+cameraYaw:y;const desired=[(Math.sin(movementYaw)*forward+Math.cos(movementYaw)*side)*v,vertical*v*.72,(-Math.cos(movementYaw)*forward+Math.sin(movementYaw)*side)*v];velocity.current=velocity.current.map((value,i)=>THREE.MathUtils.damp(value,desired[i],(forward||side||vertical)?5.5:2.2,dt));const nx=THREE.MathUtils.clamp(p[0]+velocity.current[0]*dt,-100,260);
-    const nz=THREE.MathUtils.clamp(p[2]+velocity.current[2]*dt,-380,35);
-    const ny=THREE.MathUtils.clamp(p[1]+velocity.current[1]*dt,1,120);
-    posRef.current=[nx,ny,nz];yawRef.current=y;
-    if(now-ui>50){setPos([...posRef.current]);setYaw(y);setSpeed(Math.round(Math.hypot(...velocity.current)));setBattery(b=>Math.max(0,b-dt*.12));ui=now;}
-   }
-   frame=requestAnimationFrame(tick);
-  };frame=requestAnimationFrame(tick);
-  return()=>{cancelAnimationFrame(frame);window.removeEventListener('keydown',down);window.removeEventListener('keyup',up)};
- },[paused,fpv,cameraYaw]);
- const reset=()=>{posRef.current=[0,5,4];yawRef.current=0;setPos([0,5,4]);setYaw(0);velocity.current=[0,0,0];setBattery(100);setScanned([]);scannedRef.current=[];setNotice('FLIGHT RESET — READY');};
- return <main className="sim-shell">
-  <Canvas shadows dpr={[1,1.5]} camera={{position:[0,9,14],fov:65}}><Suspense fallback={null}><World position={pos} yaw={yaw} fpv={fpv} paused={paused} cameraYaw={cameraYaw} cameraPitch={cameraPitch} scanned={scanned}/></Suspense></Canvas>
-  <div className="sim-top"><div className="sim-brand"><span>✦</span> SKY<span>CTRL</span><small>DRONE FLIGHT SIMULATOR</small></div><div className="sim-live"><i/> SIMULATION ONLINE <b>• TRAINING MODE</b></div><div className="sim-buttons"><button onClick={()=>setFpv(v=>!v)}><Camera size={16}/>{fpv?'CHASE CAM':'FPV VIEW'}</button><button onClick={()=>setPaused(v=>!v)}>{paused?<Play size={16}/>:<Pause size={16}/>}</button><button onClick={reset}><RotateCcw size={16}/></button></div></div>
-  <section className="sim-card sim-left"><div className="sim-label">FLIGHT TELEMETRY</div><div className="sim-metric"><span>ALTITUDE <small>MAX 120 M</small></span><strong>{pos[1].toFixed(1)} <small>m</small></strong></div><div className="sim-metric"><span>GROUND SPEED</span><strong>{speed.toFixed(0)} <small>m/s</small></strong></div><div className="sim-metric"><span>HEADING</span><strong>{((yaw*180/Math.PI+360)%360).toFixed(0)}°</strong></div><div className="sim-divider"/><div className="sim-battery"><Battery size={15}/><span>BATTERY</span><b>{battery.toFixed(0)}%</b></div><div className="sim-batbar"><i style={{width:battery+'%'}}/></div><div className="sim-signal"><Signal size={14}/> GPS LOCK <b>STRONG</b></div></section>
-
-  <section className="sim-card sim-speed-panel"><div className="sim-label"><Gauge size={13}/> SPEED CONTROL</div><div className="sim-speed-value">{maxSpeed.toFixed(1)} <small>m/s</small></div><input aria-label="Maximum flight speed" type="range" min="1" max="20" step=".5" value={maxSpeed} onChange={e=>setMaxSpeed(Number(e.target.value))}/><div className="sim-speed-scale"><span>1 SLOW</span><span>50 FAST</span></div><div className="sim-speed-presets">{[5,15,30,50].map(v=><button key={v} className={maxSpeed===v?'active':''} onClick={()=>setMaxSpeed(v)}>{v===5?'SLOW':v===15?'NORMAL':v===30?'FAST':'MAX'}</button>)}</div></section>
-  <section className="sim-card sim-phone-panel"><div className="sim-label"><Smartphone size={13}/> PHONE LINK</div><div className="sim-phone-state"><i className={phoneConnected?'connected':''}/>{phoneConnected?'PHONE CONNECTED':'PAIR YOUR PHONE'}</div>{peerId?<><img className="sim-qr" alt="QR code to connect phone controller" src={'https://api.qrserver.com/v1/create-qr-code/?size=132x132&data='+encodeURIComponent(phoneUrl)}/><button className="sim-copy-link" onClick={copyPhoneLink}>{copied?<Check size={13}/>:<Copy size={13}/>} {copied?'COPIED':'COPY PHONE LINK'}</button><small>Quét mã QR bằng điện thoại cùng mạng internet.</small></>:<small>Đang tạo mã kết nối...</small>}</section>
-
-  <section className="sim-card sim-mission-panel"><div className="sim-label">✦ AIRPORT SCAN MISSION</div><h3>{scanned.length===3?'MISSION COMPLETE':'VERIFY 3 AIRCRAFT'}</h3><p>Sân bay có 20 máy bay. Tìm 3 chiếc có đèn màu cam và quét xác nhận bằng nút G.</p><div className="mission-stats"><span>VERIFIED</span><b>{scanned.length}/3</b><strong>{Math.round(scanned.length/3*100)}%</strong></div><div className="mission-status">{scanned.length===3?'✓ ALL 3 AIRCRAFT VERIFIED':'G = SCAN • '+(3-scanned.length)+' LEFT'}</div><small className="mission-hint">GỢI Ý: Sân bay nằm ngoài thành phố, phía Đông Nam bản đồ. Kéo chuột để xoay camera ở cả hai chế độ.</small><button className="mission-start" onClick={()=>{setScanned([]);scannedRef.current=[];setNotice('MISSION RESET — FIND THE 3 AMBER AIRCRAFT');}}>RESET MISSION</button></section>
-  <section className="sim-card sim-minimap"><div className="sim-label">MINI MAP <span>LIVE GPS</span></div><svg viewBox="0 0 180 125" role="img" aria-label="Mini map showing drone, target and runway"><path d="M90 5V120M10 62H170" stroke="#ffffff18" strokeDasharray="3 4"/><path d="M76 14L104 14L104 110L76 110Z" fill="#738c96" opacity=".35"/><path d="M90 18V106" stroke="#e5f4fa" strokeWidth="2" strokeDasharray="7 6"/><path d="M55 108L125 108" stroke="#f2c16c" strokeWidth="4"/><circle cx={8+(pos[0]+100)*.455} cy={Math.max(8,Math.min(118,10+(35-pos[2])*.253))} r="5" fill="#62e7ef" stroke="#fff" strokeWidth="1.5"/><path d={`M${90+pos[0]*.75} ${Math.max(8,Math.min(118,30+pos[2]*.7))-9}l-4 8h8z`} fill="#62e7ef"/>{AIRCRAFT_STANDS.map((a,i)=><circle key={i} cx={8+(a.x+150+100)*.455} cy={Math.max(8,Math.min(118,10+(35-(a.z-190))*.253))} r={[2,9,17].includes(i)?3.2:1.8} fill={[2,9,17].includes(i)?(scanned.includes(i)?"#5ee0a0":"#ffb84e"):"#a9bbc4"}/>) }<text x="8" y="12" fill="#b9d5df" fontSize="7">N</text><text x="130" y="119" fill="#f2c16c" fontSize="7">RUNWAY</text></svg><small>CYAN: DRONE • AMBER: SCAN TARGETS</small></section>
-  <div className="sim-notice">{notice}</div>
-  <div className="sim-controls"><div className="sim-label">CONTROLS</div><div><kbd>G</kbd><span>SCAN AIRCRAFT</span></div><div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>MOVE</span></div><div><kbd>SPACE</kbd><kbd>SHIFT</kbd><span>UP / DOWN</span></div><div><kbd>Q</kbd><kbd>E</kbd><span>YAW LEFT / RIGHT</span></div><div><kbd>C</kbd><span>FPV / CHASE CAMERA</span></div><div><span>DRAG MOUSE: ROTATE CAMERA IN BOTH VIEWS</span></div><div><kbd>P</kbd><span>PAUSE</span></div></div>
-  <div className="sim-crosshair">＋</div>
-  {paused&&<div className="sim-pause"><div><div className="sim-label">SIMULATION PAUSED</div><h1>FLIGHT <span>PAUSED</span></h1><button onClick={()=>setPaused(false)}><Play size={16}/> RESUME FLIGHT</button></div></div>}
-  <div className="sim-footer"><Wind size={14}/> WIND 3.2 M/S <span>•</span> CLEAR SKY <span>•</span> TRAINING AIRSPACE</div>
+  const timer=setInterval(()=>{
+   if(paused||dead||won)return;
+   const k=keys.current,p=playerRef.current;
+   let dx=(k.d?1:0)-(k.a?1:0),dz=(k.s?1:0)-(k.w?1:0),len=Math.hypot(dx,dz)||1;
+   const next={x:clamp(p.x+dx/len*.75,-48,48),z:clamp(p.z+dz/len*.75,-44,44)};
+   playerRef.current=next;setPlayer(next);
+   let list=enemyRef.current.map(e=>{
+    const vx=next.x-e.x,vz=next.z-e.z,d=Math.hypot(vx,vz)||1;
+    if(d>3.3)return {...e,x:e.x+vx/d*(e.type==='hero'?.12:.17),z:e.z+vz/d*(e.type==='hero'?.12:.17)};
+    if(Math.random()<.13){hpRef.current=Math.max(0,hpRef.current-(e.type==='hero'?3:1.5));setHp(hpRef.current);}
+    return e;
+   });
+   enemyRef.current=list;setEnemies(list);
+   if(Date.now()-lastSpawn.current>8500){lastSpawn.current=Date.now();setAllyMinions(m=>[...m,{id:Date.now(),x:0,z:32,hp:100}]);}
+   setAllyMinions(m=>m.map(a=>({...a,z:Math.max(-33,a.z-.18)})).filter(a=>a.z>-34));
+   coolRef.current={Q:Math.max(0,coolRef.current.Q-.1),E:Math.max(0,coolRef.current.E-.1),R:Math.max(0,coolRef.current.R-.1)};setCool({...coolRef.current});
+   if(hpRef.current<=0)setDead(true);
+  },100);
+  return()=>{clearInterval(timer);window.removeEventListener('keydown',down);window.removeEventListener('keyup',up);};
+ },[paused,dead,won]);
+ function showFx(kind,x,z){setFx({kind,x,z});clearTimeout(fxTimer.current);fxTimer.current=setTimeout(()=>setFx(null),650);}
+ function attack(){if(paused||dead||won)return;const p=playerRef.current;let list=enemyRef.current.map(e=>Math.hypot(e.x-p.x,e.z-p.z)<9?{...e,hp:e.hp-25}:e).filter(e=>e.hp>0);if(list.length<enemyRef.current.length){setKills(v=>v+enemyRef.current.length-list.length);setNotice('ĐÒN ĐÁNH TRÚNG MỤC TIÊU!');}enemyRef.current=list;setEnemies(list);showFx('Q',p.x,p.z-4);lastAttack.current=Date.now();}
+ function cast(kind){if(paused||dead||won||coolRef.current[kind]>0)return;const p=playerRef.current;const cd={Q:4,E:7,R:18}[kind];coolRef.current={...coolRef.current,[kind]:cd};setCool({...coolRef.current});if(kind==='E'){playerRef.current={x:clamp(p.x,-48,48),z:clamp(p.z-8,-44,44)};setPlayer(playerRef.current);}const radius=kind==='R'?18:kind==='Q'?10:6;const damage={Q:48,E:32,R:100}[kind];const list=enemyRef.current.map(e=>Math.hypot(e.x-p.x,e.z-p.z)<radius?{...e,hp:e.hp-damage}:e).filter(e=>e.hp>0);if(list.length<enemyRef.current.length){setKills(v=>v+enemyRef.current.length-list.length);setNotice(kind==='R'?'SIÊU CHIÊU! QUÉT SẠCH KHU VỰC':'KỸ NĂNG TRÚNG ĐÍCH!');}enemyRef.current=list;setEnemies(list);showFx(kind,p.x,p.z-2);}
+ function reset(){playerRef.current={x:0,z:28};setPlayer(playerRef.current);hpRef.current=100;setHp(100);enemyRef.current=START_ENEMIES;setEnemies(START_ENEMIES);setKills(0);setCoreHp(100);setDead(false);setWon(false);setPaused(false);coolRef.current={Q:0,E:0,R:0};setCool({...coolRef.current});setNotice('TRẬN ĐẤU MỚI • TIẾN LÊN ĐƯỜNG GIỮA');}
+ return <main className="moba-shell">
+  <Canvas shadows camera={{position:[0,38,62],fov:48}}><Arena player={player} enemies={enemies} allyMinions={allyMinions} enemyCoreHp={coreHp} playerHp={hp} fx={fx}/></Canvas>
+  <header className="moba-top"><div className="moba-logo">ARENA <b>ZERO</b><small>5V5 • FANTASY MOBA</small></div><div className="moba-score"><span>BLUE TEAM</span><strong>{kills}</strong><i>VS</i><strong>{Math.max(0,5-enemies.length)}</strong><span>RED TEAM</span></div><div className="moba-top-actions"><button onClick={()=>setPaused(v=>!v)}>{paused?<Play/>:<Pause/>}</button><button onClick={reset}><RotateCcw/></button></div></header>
+  <div className="moba-objective"><Trophy size={14}/> MỤC TIÊU: PHÁ HỦY NHÀ CHÍNH ĐỎ <b>•</b> ĐƯỜNG GIỮA</div>
+  <aside className="moba-stats"><div className="moba-player-name"><span className="hero-avatar">✦</span><div><b>AZURE KNIGHT</b><small>LEVEL 1 • WARRIOR</small></div></div><div className="stat-row"><Heart size={14}/><div className="stat-track"><i style={{width:hp+'%'}}/></div><b>{Math.ceil(hp)}/100</b></div><div className="stat-row mana"><Zap size={14}/><div className="stat-track"><i style={{width:'85%'}}/></div><b>85/100</b></div><div className="stat-row"><Shield size={14}/><span>ARMOR</span><b>12</b></div></aside>
+  <div className="moba-notice">{notice}</div>
+  <section className="moba-skills"><button className="attack-btn" onClick={attack}><Swords/><b>ĐÁNH THƯỜNG</b><small>CLICK / J</small></button>{['Q','E','R'].map((s,i)=><button key={s} className={'skill-btn skill-'+s} onClick={()=>cast(s)} disabled={cool[s]>0}><span>{s==='Q'?'✦':s==='E'?'➤':'✹'}</span><b>{s}</b><small>{cool[s]>0?cool[s].toFixed(1)+'s':['4s','7s','18s'][i]}</small></button>)}</section>
+  <div className="moba-controls"><b>ĐIỀU KHIỂN</b><span>W A S D · DI CHUYỂN</span><span>CLICK / J · ĐÁNH</span><span>Q · KIẾM QUANG</span><span>E · LƯỚT</span><span>R · BÃO NĂNG LƯỢNG</span><span>P · TẠM DỪNG</span></div>
+  <div className="moba-minimap"><div className="mini-diag"/><i className="mini-blue"/><i className="mini-red"/><span>MINIMAP</span></div>
+  <div className="moba-bottom"><span>⚔ 5V5 ARENA</span><span>● MATCH IN PROGRESS</span><span>FPS SIMULATION</span></div>
+  {(paused||dead||won)&&<div className="moba-overlay"><div><h1>{paused?'TẠM DỪNG':dead?'BẠN ĐÃ BỊ HẠ GỤC':'CHIẾN THẮNG!'}</h1><p>{paused?'Trận đấu đang tạm dừng.':dead?'Hãy thử lại và phối hợp kỹ năng hợp lý hơn.':'Nhà chính đối phương đã bị phá hủy.'}</p><button onClick={paused?()=>setPaused(false):reset}>{paused?'TIẾP TỤC':'CHƠI LẠI'}</button></div></div>}
  </main>;
 }
