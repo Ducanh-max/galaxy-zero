@@ -4,19 +4,25 @@ import { Stars, Float, Sparkles, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { Activity, BatteryCharging, Compass, Crosshair, Gem, Heart, Map, Pause, Play, Radio, Rocket, Shield, Volume2, VolumeX, Zap } from 'lucide-react';
 
+const PLANETS = [
+  { id: 'elysium', name: 'ELYSIUM-4', title: 'Echoes of Elysium', ground: '#17233b', grid: '#294568', sky: '#4b4a9c', glow: '#8c79ff', resource: 'ENERGY SHARDS' },
+  { id: 'vulcan', name: 'VULCAN-9', title: 'The Ember Signal', ground: '#38202a', grid: '#75404a', sky: '#a94d3d', glow: '#ff805b', resource: 'EMBER CORES' },
+  { id: 'cryon', name: 'CRYON-2', title: 'Whispers of Ice', ground: '#183642', grid: '#347080', sky: '#4d9db5', glow: '#8cecff', resource: 'FROST CRYSTALS' }
+];
+
 const CRYSTALS = [
   [-5.5, 0.4, -3.5], [-2.8, 0.4, -6.2], [1.2, 0.4, -5.5],
   [5.4, 0.4, -2.2], [4.2, 0.4, 3.8], [-1.8, 0.4, 5.1]
 ];
 
-function Ground() {
+function Ground({ planet }) {
   return (
     <group>
       <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
         <circleGeometry args={[17, 80]} />
-        <meshStandardMaterial color="#17233b" roughness={0.94} />
+        <meshStandardMaterial color={planet.ground} roughness={0.94} />
       </mesh>
-      <gridHelper args={[34, 34, '#294568', '#1c2d49']} position={[0, 0.015, 0]} />
+      <gridHelper args={[34, 34, planet.grid, '#1c2d49']} position={[0, 0.015, 0]} />
       {Array.from({ length: 26 }).map((_, i) => {
         const angle = i * 2.4;
         const radius = 7 + (i % 5) * 1.55;
@@ -29,20 +35,20 @@ function Ground() {
   );
 }
 
-function PlanetBackdrop() {
+function PlanetBackdrop({ planet }) {
   return (
     <group position={[12, 8, -24]}>
       <mesh>
         <sphereGeometry args={[7, 48, 48]} />
-        <meshStandardMaterial color="#4b4a9c" roughness={0.88} />
+        <meshStandardMaterial color={planet.sky} roughness={0.88} />
       </mesh>
       <mesh scale={1.018}>
         <sphereGeometry args={[7, 48, 48]} />
-        <meshBasicMaterial color="#8c79ff" transparent opacity={0.12} side={THREE.BackSide} />
+        <meshBasicMaterial color={planet.glow} transparent opacity={0.12} side={THREE.BackSide} />
       </mesh>
       <mesh rotation={[0.55, 0.1, -0.35]}>
         <torusGeometry args={[9.5, 0.12, 8, 100]} />
-        <meshBasicMaterial color="#9a8cff" transparent opacity={0.5} />
+        <meshBasicMaterial color={planet.glow} transparent opacity={0.5} />
       </mesh>
     </group>
   );
@@ -143,7 +149,7 @@ function Spaceship({ position, flying }) {
   </group>;
 }
 
-function World({ player, collected, onCollect, flying }) {
+function World({ player, collected, onCollect, flying, planet }) {
   return <>
     <color attach="background" args={['#050816']} />
     <fog attach="fog" args={['#070d20', 18, 48]} />
@@ -152,8 +158,8 @@ function World({ player, collected, onCollect, flying }) {
     <pointLight position={[0, 5, 0]} color="#4a6dff" intensity={1.5} distance={18} />
     <Stars radius={90} depth={55} count={2600} factor={4} saturation={0.4} fade speed={0.35} />
     <Sparkles count={90} scale={25} size={2} speed={0.25} color="#8d9eff" />
-    <PlanetBackdrop />
-    <Ground />
+    <PlanetBackdrop planet={planet} />
+    <Ground planet={planet} />
     {!flying && <Astronaut position={player} />}
     <Spaceship position={player} flying={flying} />
     {CRYSTALS.map((p, i) => <Crystal key={i} position={p} index={i} collected={collected.includes(i)} onCollect={() => onCollect(i)} />)}
@@ -168,8 +174,11 @@ function World({ player, collected, onCollect, flying }) {
 
 export default function App() {
   const [player, setPlayer] = useState([0, 0, 0]);
+  const [planetIndex, setPlanetIndex] = useState(0);
+  const planet = PLANETS[planetIndex];
   const [collected, setCollected] = useState([]);
-  const [paused, setPaused] = useState(false);\n  const [flying, setFlying] = useState(false);
+  const [paused, setPaused] = useState(false);
+  const [flying, setFlying] = useState(false);
   const [sound, setSound] = useState(false);
   const [health] = useState(100);
   const [energy] = useState(86);
@@ -185,7 +194,8 @@ export default function App() {
     const down = (e) => {
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) e.preventDefault();
       keys.current[e.key.toLowerCase()] = true;
-      if (e.key.toLowerCase() === 'p' || e.key === 'Escape') setPaused((v) => !v);\n      if (e.key.toLowerCase() === 'e' && !e.repeat) setFlying((v) => !v);
+      if (e.key.toLowerCase() === 'p' || e.key === 'Escape') setPaused((v) => !v);
+      if (e.key.toLowerCase() === 'e' && !e.repeat) setFlying((v) => !v);
     };
     const up = (e) => { keys.current[e.key.toLowerCase()] = false; };
     window.addEventListener('keydown', down);
@@ -226,13 +236,13 @@ export default function App() {
   return <main className="game-shell">
     <Canvas shadows camera={{ position: [0, 7.5, 11], fov: 48 }} dpr={[1, 1.7]}>
       <Suspense fallback={null}>
-        <World player={player} collected={collected} onCollect={collect} flying={flying} />
+        <World player={player} collected={collected} onCollect={collect} flying={flying} planet={planet} />
       </Suspense>
     </Canvas>
     <div className="vignette" />
     <header className="topbar">
       <a className="brand" href="#"><span className="brand-mark"><Rocket size={19} /></span><span>GALAXY<span className="brand-accent">ZERO</span><small>THE FRONTIER AWAITS</small></span></a>
-      <div className="sector-pill"><span className="live-dot" /> SECTOR 07 <i /> ELYSIUM-4 <i /> {flying ? "FLIGHT MODE" : "ON FOOT"}</div>
+      <div className="sector-pill"><span className="live-dot" /> SECTOR 07 <i /> {planet.name} <i /> {flying ? "FLIGHT MODE" : "ON FOOT"}</div>
       <div className="top-actions">
         <button className="icon-button" onClick={() => setSound(!sound)} aria-label="Toggle sound">{sound ? <Volume2 size={18} /> : <VolumeX size={18} />}</button>
         <button className="icon-button" onClick={() => setPaused(!paused)} aria-label="Pause">{paused ? <Play size={18} /> : <Pause size={18} />}</button>
@@ -240,13 +250,23 @@ export default function App() {
       </div>
     </header>
 
+    <section className="planet-selector glass">
+      <div className="eyebrow"><span className="eyebrow-line" /> STAR CHART</div>
+      <div className="planet-options">
+        {PLANETS.map((item, index) => <button key={item.id} className={planetIndex === index ? 'planet-option active' : 'planet-option'} onClick={() => { setPlanetIndex(index); setPlayer([0, 0, 0]); playerRef.current = [0, 0, 0]; setCollected([]); }}>
+          <span className={'planet-orb ' + item.id} />
+          <span><strong>{item.name}</strong><small>{index === 0 ? 'HABITABLE' : index === 1 ? 'VOLCANIC' : 'FROZEN'}</small></span>
+          <i>{planetIndex === index ? '●' : '○'}</i>
+        </button>)}
+      </div>
+    </section>
     <section className="mission-card glass">
       <div className="eyebrow"><span className="eyebrow-line" /> CURRENT OBJECTIVE</div>
-      <div className="mission-title">Echoes of Elysium</div>
-      <p>Collect energy shards scattered across the surface.</p>
+      <div className="mission-title">{planet.title}</div>
+      <p>Explore the surface and recover rare planetary resources.</p>
       <div className="progress-row"><span>MISSION PROGRESS</span><strong>{progress}%</strong></div>
       <div className="progress-track"><span style={{ width: progress + '%' }} /></div>
-      <div className="shard-count"><Gem size={15} /> {collectedCount} <span>/ {CRYSTALS.length} SHARDS RECOVERED</span></div>
+      <div className="shard-count"><Gem size={15} /> {collectedCount} <span>/ {CRYSTALS.length} {planet.resource} RECOVERED</span></div>
       {progress === 100 && <div className="mission-complete">✦ OBJECTIVE COMPLETE</div>}
     </section>
 
@@ -268,7 +288,7 @@ export default function App() {
       <div className="control-row"><div className="keycap">E</div><span>Enter / exit ship</span></div><div className="control-row"><div className="keycap">P</div><span>Pause mission</span></div>
     </aside>
 
-    <div className="scanner glass"><div className="scanner-head"><Map size={14} /> LOCAL SCAN <span>LIVE</span></div><div className="radar"><div className="radar-sweep" /><div className="radar-center" /><i className="radar-dot dot-one" /><i className="radar-dot dot-two" /><i className="radar-dot dot-three" /></div><div className="scanner-foot"><span>ELYSIUM-4</span><span>RANGE 1.2 KM</span></div></div>
+    <div className="scanner glass"><div className="scanner-head"><Map size={14} /> LOCAL SCAN <span>LIVE</span></div><div className="radar"><div className="radar-sweep" /><div className="radar-center" /><i className="radar-dot dot-one" /><i className="radar-dot dot-two" /><i className="radar-dot dot-three" /></div><div className="scanner-foot"><span>{planet.name}</span><span>RANGE 1.2 KM</span></div></div>
 
     <div className="bottom-center"><span className="bottom-line" /><Radio size={14} /><span>DEEP SPACE NETWORK</span><b>CONNECTED</b><span className="bottom-line" /></div>
     {paused && <div className="pause-overlay"><div className="pause-panel glass"><div className="pause-icon"><Pause size={24} /></div><div className="eyebrow">MISSION SUSPENDED</div><h1>TAKE A BREATH,<br /><span>EXPLORER.</span></h1><p>Your journey is waiting.</p><button className="primary-button" onClick={() => setPaused(false)}><Play size={16} fill="currentColor" /> RESUME MISSION</button></div></div>}
