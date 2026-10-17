@@ -37,7 +37,7 @@ function PhoneController({peerId}){
  <p className="phone-hint">Giữ nút để điều khiển • Thả tay để dừng</p></main>;
 }
 
-function World({ position, yaw, fpv, paused, cameraYaw, cameraPitch }) {
+function World({ position, yaw, fpv, paused, cameraYaw, cameraPitch, targetRef, targetActive }) {
   const drone = useRef();
   const cameraTarget = useRef(new THREE.Vector3());
   useFrame((state, dt) => {
@@ -50,7 +50,7 @@ function World({ position, yaw, fpv, paused, cameraYaw, cameraPitch }) {
     const smoothYaw = drone.current.rotation.y;
     if (fpv) {
       // Camera sits just ahead of the drone nose; mouse drag controls its gimbal.
-      const forwardOffset = new THREE.Vector3(0, .10, -.72).applyAxisAngle(new THREE.Vector3(0,1,0), smoothYaw);
+      const forwardOffset = new THREE.Vector3(0, -.025, -1.12).applyAxisAngle(new THREE.Vector3(0,1,0), smoothYaw);
       const desired = target.clone().add(forwardOffset);
       state.camera.position.lerp(desired, 1 - Math.exp(-12 * dt));
       const lookYaw = smoothYaw + cameraYaw;
@@ -96,7 +96,7 @@ function World({ position, yaw, fpv, paused, cameraYaw, cameraPitch }) {
     <mesh rotation={[-Math.PI/2,0,0]} position={[27,-.35,-38]}><circleGeometry args={[12,48]}/><meshStandardMaterial color="#367f91" roughness={.18} transparent opacity={.9}/></mesh>
     <group ref={drone}>
       {/* Compact camera drone inspired by mobile driving-game drones */}
-      <mesh castShadow scale={[1,.72,1.35]}><capsuleGeometry args={[.34,.55,6,12]}/><meshStandardMaterial color="#252d36" metalness={.72} roughness={.27}/></mesh>
+      <group visible={!fpv}><mesh castShadow scale={[1,.72,1.35]}><capsuleGeometry args={[.34,.55,6,12]}/><meshStandardMaterial color="#252d36" metalness={.72} roughness={.27}/></mesh>
       <mesh position={[0,.12,-.08]} scale={[.72,.22,1.05]} castShadow><boxGeometry args={[1,.42,1]}/><meshStandardMaterial color="#e8edf0" metalness={.35} roughness={.32}/></mesh>
       <mesh position={[0,.02,-.48]}><boxGeometry args={[.56,.12,.32]}/><meshStandardMaterial color="#111a23" metalness={.7}/></mesh>
       {[[-1,-1],[1,-1],[-1,1],[1,1]].map(([x,z],i)=><group key={i} position={[x*.78,.03,z*.72]}>
@@ -112,13 +112,14 @@ function World({ position, yaw, fpv, paused, cameraYaw, cameraPitch }) {
         <mesh position={[0,-.06,-.21]}><circleGeometry args={[.073,24]}/><meshBasicMaterial color="#43d9ff"/></mesh>
       </group>
       {[-1,1].map(x=><group key={x} position={[x*.48,-.3,.18]}><mesh><cylinderGeometry args={[.035,.035,.45,10]}/><meshStandardMaterial color="#303c46" metalness={.7}/></mesh><mesh position={[0,-.22,.12]} rotation={[Math.PI/2,0,0]}><cylinderGeometry args={[.035,.035,.48,10]}/><meshStandardMaterial color="#303c46" metalness={.7}/></mesh></group>)}
-      <pointLight position={[0,0,-.9]} color="#40eaff" intensity={1.1} distance={3}/>
+      <pointLight position={[0,0,-.9]} color="#40eaff" intensity={1.1} distance={3}/></group>
     </group>
+    <TrainingTarget targetRef={targetRef} active={targetActive}/>
     <Float speed={1.2} floatIntensity={.15}><mesh position={[-22,14,-65]}><sphereGeometry args={[7,32,32]}/><meshStandardMaterial color="#d7e4df" roughness={1}/></mesh></Float>
     <Sparkles count={100} scale={[65,25,130]} position={[0,8,-55]} size={1.4} speed={.2} color="#ffffff"/>
   </>;
 }
-function Rotor({position}) {
+function TrainingTarget({targetRef,active}) {\n const ref=useRef();\n useFrame((_,dt)=>{if(!ref.current||!active)return;ref.current.position.z+=dt*1.05;targetRef.current.copy(ref.current.position);});\n if(!active)return null;\n return <group ref={ref} position={[0,8,-92]} rotation={[0,Math.PI,0]}>\n  <mesh castShadow><capsuleGeometry args={[.22,2.1,4,8]}/><meshStandardMaterial color="#d5e3ec" metalness={.55} roughness={.35}/></mesh>\n  <mesh position={[0,0,0]}><boxGeometry args={[5.8,.09,.72]}/><meshStandardMaterial color="#e2a84c" metalness={.35}/></mesh>\n  <mesh position={[0,.35,.72]}><boxGeometry args={[1.5,.08,.75]}/><meshStandardMaterial color="#e2a84c"/></mesh>\n  <mesh position={[0,-.08,-1.05]}><coneGeometry args={[.24,.8,12]}/><meshStandardMaterial color="#e2a84c"/></mesh>\n  <pointLight position={[0,.3,0]} color="#ffbd55" intensity={1.5} distance={8}/>\n </group>;\n}\nfunction Rotor({position}) {
  const ref=useRef();
  useFrame((s)=>{if(ref.current)ref.current.rotation.y=s.clock.elapsedTime*28;});
  return <group ref={ref} position={position}><mesh><cylinderGeometry args={[.08,.08,.12,12]}/><meshStandardMaterial color="#d9e6ee" metalness={.8}/></mesh><mesh position={[0,.08,0]}><boxGeometry args={[1.12,.025,.075]}/><meshStandardMaterial color="#263747" metalness={.5}/></mesh></group>;
@@ -132,7 +133,7 @@ export default function App(){
  const [paused,setPaused]=useState(false),[fpv,setFpv]=useState(false);
  const [cameraYaw,setCameraYaw]=useState(0),[cameraPitch,setCameraPitch]=useState(0);
  const cameraDrag=useRef({active:false,x:0,y:0});
- const [battery,setBattery]=useState(100),[speed,setSpeed]=useState(0);
+ const [battery,setBattery]=useState(100),[speed,setSpeed]=useState(0);\n const targetRef=useRef(new THREE.Vector3(0,8,-92));\n const [targetHealth,setTargetHealth]=useState(3),[targetFailed,setTargetFailed]=useState(false);\n const targetFailedRef=useRef(false),lastShot=useRef(0);
  const [maxSpeed,setMaxSpeed]=useState(8.5),[peerId,setPeerId]=useState(''),[phoneConnected,setPhoneConnected]=useState(false),[copied,setCopied]=useState(false);
  const remote=useRef({forward:0,side:0,vertical:0,yaw:0}); const maxSpeedRef=useRef(8.5);maxSpeedRef.current=maxSpeed;
  useEffect(()=>{
@@ -171,7 +172,7 @@ export default function App(){
   window.addEventListener('keydown',down);window.addEventListener('keyup',up);
   let frame,last=performance.now(),ui=0;
   const tick=now=>{const dt=Math.min((now-last)/1000,.04);last=now;
-   if(!paused){const k=keys.current;let p=posRef.current;let y=yawRef.current;
+   if(!paused){const k=keys.current;let p=posRef.current;let y=yawRef.current;\n    if(targetRef.current.z>-20 && targetHealth>0 && !targetFailedRef.current){targetFailedRef.current=true;setTargetFailed(true);setNotice('TARGET PASSED THE RUNWAY — MISSION FAILED');}\n    if(k.g && now-lastShot.current>550 && targetHealth>0 && !targetFailedRef.current){lastShot.current=now;const dx=targetRef.current.x-p[0],dz=targetRef.current.z-p[2],distance=Math.hypot(dx,dz);const aimX=Math.sin(y),aimZ=-Math.cos(y);const dot=(dx*aimX+dz*aimZ)/(distance||1);if(distance<65&&dot>.94){setTargetHealth(h=>Math.max(0,h-1));setNotice('ENERGY PULSE HIT — TARGET '+Math.max(0,targetHealth-1)+'/3');}else setNotice('ALIGN THE FPV CROSSHAIR WITH THE TRAINING TARGET');}
     y+=((k.q?1:0)-(k.e?1:0)+remote.current.yaw)*dt*1.5;
     const forward=THREE.MathUtils.clamp((((k.w||k.arrowup)?1:0)-((k.s||k.arrowdown)?1:0))+remote.current.forward,-1,1);
     const side=THREE.MathUtils.clamp((((k.d||k.arrowright)?1:0)-((k.a||k.arrowleft)?1:0))+remote.current.side,-1,1);
@@ -188,15 +189,15 @@ export default function App(){
  },[paused]);
  const reset=()=>{posRef.current=[0,5,4];yawRef.current=0;setPos([0,5,4]);setYaw(0);velocity.current=[0,0,0];setBattery(100);setNotice('FLIGHT RESET — READY');};
  return <main className="sim-shell">
-  <Canvas shadows dpr={[1,1.5]} camera={{position:[0,9,14],fov:65}}><Suspense fallback={null}><World position={pos} yaw={yaw} fpv={fpv} paused={paused} cameraYaw={cameraYaw} cameraPitch={cameraPitch} /></Suspense></Canvas>
+  <Canvas shadows dpr={[1,1.5]} camera={{position:[0,9,14],fov:65}}><Suspense fallback={null}><World position={pos} yaw={yaw} fpv={fpv} paused={paused} cameraYaw={cameraYaw} cameraPitch={cameraPitch} targetRef={targetRef} targetActive={targetHealth>0&&!targetFailed}/></Suspense></Canvas>
   <div className="sim-top"><div className="sim-brand"><span>✦</span> SKY<span>CTRL</span><small>DRONE FLIGHT SIMULATOR</small></div><div className="sim-live"><i/> SIMULATION ONLINE <b>• TRAINING MODE</b></div><div className="sim-buttons"><button onClick={()=>setFpv(v=>!v)}><Camera size={16}/>{fpv?'CHASE CAM':'FPV VIEW'}</button><button onClick={()=>setPaused(v=>!v)}>{paused?<Play size={16}/>:<Pause size={16}/>}</button><button onClick={reset}><RotateCcw size={16}/></button></div></div>
   <section className="sim-card sim-left"><div className="sim-label">FLIGHT TELEMETRY</div><div className="sim-metric"><span>ALTITUDE <small>MAX 120 M</small></span><strong>{pos[1].toFixed(1)} <small>m</small></strong></div><div className="sim-metric"><span>GROUND SPEED</span><strong>{speed.toFixed(0)} <small>m/s</small></strong></div><div className="sim-metric"><span>HEADING</span><strong>{((yaw*180/Math.PI+360)%360).toFixed(0)}°</strong></div><div className="sim-divider"/><div className="sim-battery"><Battery size={15}/><span>BATTERY</span><b>{battery.toFixed(0)}%</b></div><div className="sim-batbar"><i style={{width:battery+'%'}}/></div><div className="sim-signal"><Signal size={14}/> GPS LOCK <b>STRONG</b></div></section>
 
   <section className="sim-card sim-speed-panel"><div className="sim-label"><Gauge size={13}/> SPEED CONTROL</div><div className="sim-speed-value">{maxSpeed.toFixed(1)} <small>m/s</small></div><input aria-label="Maximum flight speed" type="range" min="1" max="20" step=".5" value={maxSpeed} onChange={e=>setMaxSpeed(Number(e.target.value))}/><div className="sim-speed-scale"><span>1 SLOW</span><span>20 FAST</span></div><div className="sim-speed-presets">{[3,8.5,14,20].map(v=><button key={v} className={maxSpeed===v?'active':''} onClick={()=>setMaxSpeed(v)}>{v===3?'SLOW':v===8.5?'NORMAL':v===14?'FAST':'MAX'}</button>)}</div></section>
   <section className="sim-card sim-phone-panel"><div className="sim-label"><Smartphone size={13}/> PHONE LINK</div><div className="sim-phone-state"><i className={phoneConnected?'connected':''}/>{phoneConnected?'PHONE CONNECTED':'PAIR YOUR PHONE'}</div>{peerId?<><img className="sim-qr" alt="QR code to connect phone controller" src={'https://api.qrserver.com/v1/create-qr-code/?size=132x132&data='+encodeURIComponent(phoneUrl)}/><button className="sim-copy-link" onClick={copyPhoneLink}>{copied?<Check size={13}/>:<Copy size={13}/>} {copied?'COPIED':'COPY PHONE LINK'}</button><small>Quét mã QR bằng điện thoại cùng mạng internet.</small></>:<small>Đang tạo mã kết nối...</small>}</section>
 
-  <div className="sim-notice">{notice}</div>
-  <div className="sim-controls"><div className="sim-label">CONTROLS</div><div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>MOVE</span></div><div><kbd>SPACE</kbd><kbd>SHIFT</kbd><span>UP / DOWN</span></div><div><kbd>Q</kbd><kbd>E</kbd><span>YAW LEFT / RIGHT</span></div><div><kbd>C</kbd><span>FPV / CHASE CAMERA</span></div><div><span>FPV: DRAG MOUSE TO LOOK</span></div><div><kbd>P</kbd><span>PAUSE</span></div></div>
+  <section className="sim-card sim-mission-panel"><div className="sim-label">✦ AIRSPACE INTERCEPT</div><h3>{targetHealth===0?'TARGET INTERCEPTED':targetFailed?'MISSION FAILED':'TRAINING TARGET'}</h3><p>Đánh dấu máy bay mục tiêu không người lái trước khi nó tới đường băng. Dùng FPV để căn tâm.</p><div className="mission-stats"><span>ENERGY TAGS</span><b>{3-targetHealth}/3</b><strong>{targetHealth===0?'100%':targetFailed?'0%':Math.round((3-targetHealth)/3*100)+'%'}</strong></div><div className="mission-status">{targetHealth===0?'✓ COMPLETE':targetFailed?'✕ TARGET ESCAPED':'G READY • '+targetHealth+' HITS LEFT'}</div><button className="mission-start" onClick={()=>{setTargetHealth(3);setTargetFailed(false);targetFailedRef.current=false;targetRef.current.set(0,8,-92);setNotice('NEW TRAINING TARGET INBOUND');}}>RESET MISSION</button></section>\n  <section className="sim-card sim-minimap"><div className="sim-label">MINI MAP <span>LIVE GPS</span></div><svg viewBox="0 0 180 125" role="img" aria-label="Mini map showing drone, target and runway"><path d="M90 5V120M10 62H170" stroke="#ffffff18" strokeDasharray="3 4"/><path d="M76 14L104 14L104 110L76 110Z" fill="#738c96" opacity=".35"/><path d="M90 18V106" stroke="#e5f4fa" strokeWidth="2" strokeDasharray="7 6"/><path d="M55 108L125 108" stroke="#f2c16c" strokeWidth="4"/><circle cx={90+pos[0]*.75} cy={Math.max(8,Math.min(118,30+pos[2]*.7))} r="5" fill="#62e7ef" stroke="#fff" strokeWidth="1.5"/><path d={`M${90+pos[0]*.75} ${Math.max(8,Math.min(118,30+pos[2]*.7))-9}l-4 8h8z`} fill="#62e7ef"/><circle cx="90" cy={Math.max(8,Math.min(118,30+targetRef.current.z*.7))} r="4" fill="#ffb84e"/><text x="8" y="12" fill="#b9d5df" fontSize="7">N</text><text x="130" y="119" fill="#f2c16c" fontSize="7">RUNWAY</text></svg><small>CYAN: DRONE • AMBER: TRAINING TARGET</small></section>\n  <div className="sim-notice">{notice}</div>
+  <div className="sim-controls"><div className="sim-label">CONTROLS</div><div><kbd>G</kbd><span>ENERGY PULSE</span></div><div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>MOVE</span></div><div><kbd>SPACE</kbd><kbd>SHIFT</kbd><span>UP / DOWN</span></div><div><kbd>Q</kbd><kbd>E</kbd><span>YAW LEFT / RIGHT</span></div><div><kbd>C</kbd><span>FPV / CHASE CAMERA</span></div><div><span>FPV: DRAG MOUSE TO LOOK</span></div><div><kbd>P</kbd><span>PAUSE</span></div></div>
   <div className="sim-crosshair">＋</div>
   {paused&&<div className="sim-pause"><div><div className="sim-label">SIMULATION PAUSED</div><h1>FLIGHT <span>PAUSED</span></h1><button onClick={()=>setPaused(false)}><Play size={16}/> RESUME FLIGHT</button></div></div>}
   <div className="sim-footer"><Wind size={14}/> WIND 3.2 M/S <span>•</span> CLEAR SKY <span>•</span> TRAINING AIRSPACE</div>
