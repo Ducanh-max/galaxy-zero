@@ -174,7 +174,8 @@ export default function App(){
         }
       }else if(missionId==='gates'){
         GATES.forEach((g,i)=>{if(!passed.includes(i)&&Math.hypot(nx-g[0],ny-g[1],nz-g[2])<2.5){setPassed(old=>old.includes(i)?old:[...old,i]);setNotice('CHECKPOINT '+(i+1)+' CLEARED');}});
-        if(passed.length>=5){missionActive.current=false;setMissionStatus('COMPLETE');setNotice('MISSION COMPLETE — GATE RUN!');}
+        const finalGateHit=GATES.some((g,i)=>!passed.includes(i)&&Math.hypot(nx-g[0],ny-g[1],nz-g[2])<2.5);
+        if(passed.length>=5&&finalGateHit){missionActive.current=false;setMissionStatus('COMPLETE');setNotice('MISSION COMPLETE — GATE RUN!');}
       }
       const limit=missionId==='laps'?60:45;
       if(elapsed>limit&&missionActive.current){missionActive.current=false;setMissionStatus('FAILED');setNotice('TIME UP — TRY AGAIN');}
@@ -185,7 +186,7 @@ export default function App(){
   };frame=requestAnimationFrame(tick);
   return()=>{cancelAnimationFrame(frame);window.removeEventListener('keydown',down);window.removeEventListener('keyup',up)};
  },[paused,passed,missionId]);
- const startMission=()=>{missionActive.current=true;missionStart.current=performance.now();lapRef.current=0;raceGateRef.current=0;setLapCount(0);setRaceGate(0);setMissionTime(0);setPassed([]);setMissionStatus('RUNNING');setNotice('MISSION START — GOOD LUCK!');};
+ const startMission=()=>{posRef.current=[0,5,4];yawRef.current=0;setPos([0,5,4]);setYaw(0);velocity.current=[0,0,0];missionActive.current=true;missionStart.current=performance.now();lapRef.current=0;raceGateRef.current=0;setLapCount(0);setRaceGate(0);setMissionTime(0);setPassed([]);setMissionStatus('RUNNING');setNotice('MISSION START — GOOD LUCK!');};
  const reset=()=>{missionActive.current=false;posRef.current=[0,5,4];yawRef.current=0;setPos([0,5,4]);setYaw(0);velocity.current=[0,0,0];setPassed([]);lapRef.current=0;raceGateRef.current=0;setLapCount(0);setRaceGate(0);setMissionTime(0);setMissionStatus('READY');setBattery(100);setNotice('FLIGHT RESET — READY');};
  return <main className="sim-shell">
   <Canvas shadows dpr={[1,1.5]} camera={{position:[0,9,14],fov:65}}><Suspense fallback={null}><World position={pos} yaw={yaw} fpv={fpv} paused={paused} passed={passed} raceGate={raceGate}/></Suspense></Canvas>
