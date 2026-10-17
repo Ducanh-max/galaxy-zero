@@ -11,14 +11,15 @@ function World({ position, yaw, fpv, paused, onGate, passed }) {
   const cameraTarget = useRef(new THREE.Vector3());
   useFrame((state, dt) => {
     if (!drone.current) return;
-    drone.current.position.set(...position);
-    drone.current.rotation.y = yaw;
+    drone.current.position.lerp(new THREE.Vector3(...position), 1 - Math.exp(-10 * dt));
+    drone.current.rotation.y = THREE.MathUtils.damp(drone.current.rotation.y, yaw, 7, dt);
+    drone.current.rotation.z = THREE.MathUtils.damp(drone.current.rotation.z, THREE.MathUtils.clamp(-Math.sin(yaw) * 0.13, -.18, .18), 4, dt);
     drone.current.rotation.z = THREE.MathUtils.damp(drone.current.rotation.z, 0, 5, dt);
     const target = new THREE.Vector3(position[0], position[1], position[2]);
-    const offset = fpv ? new THREE.Vector3(0, .12, -.2) : new THREE.Vector3(0, 4.2, 9);
+    const offset = fpv ? new THREE.Vector3(0, .08, -.28) : new THREE.Vector3(0, 5.8, 12);
     offset.applyAxisAngle(new THREE.Vector3(0,1,0), yaw);
     const desired = target.clone().add(offset);
-    state.camera.position.lerp(desired, 1 - Math.exp(-5*dt));
+    state.camera.position.lerp(desired, 1 - Math.exp(-3.2*dt));
     cameraTarget.current.copy(target).add(new THREE.Vector3(0, fpv ? 0 : .2, 0));
     state.camera.lookAt(cameraTarget.current);
   });
@@ -40,6 +41,11 @@ function World({ position, yaw, fpv, paused, onGate, passed }) {
         <mesh position={[0,h*.45,0]} castShadow><coneGeometry args={[1.8+(i%3),h*.48,7]}/><meshStandardMaterial color={i%2?'#527b66':'#64876b'}/></mesh>
       </group>;
     })}
+    <mesh rotation={[-Math.PI/2,0,0]} position={[0,-.43,-52]}><planeGeometry args={[13,145]}/><meshStandardMaterial color="#303f42" roughness={.95}/></mesh>
+    {Array.from({length:70},(_,i)=>{const x=Math.sin(i*8.71)*48,z=-i*1.85-7,h=3.5+(i%6)*1.5;return <group key={'forest'+i} position={[x,0,z]}><mesh position={[0,h*.32,0]} castShadow><cylinderGeometry args={[.18,.32,h*.65,7]}/><meshStandardMaterial color="#584b3c"/></mesh><mesh position={[0,h*.83,0]} castShadow><coneGeometry args={[1.2+(i%4)*.3,h*.75,8]}/><meshStandardMaterial color={i%3===0?'#315c50':'#3e7059'}/></mesh></group>;})}
+    <group position={[-17,0,-28]}><mesh position={[0,.2,0]}><cylinderGeometry args={[5,5,.4,32]}/><meshStandardMaterial color="#4c5c66" metalness={.4}/></mesh><mesh position={[0,1.3,0]}><cylinderGeometry args={[1.3,1.8,2.2,12]}/><meshStandardMaterial color="#b5c5cc" metalness={.7}/></mesh><mesh position={[0,2.5,0]}><sphereGeometry args={[.8,20,16]}/><meshStandardMaterial color="#55d9e7" emissive="#168c9a" emissiveIntensity={.8}/></mesh></group>
+    <group position={[23,0,-74]}><mesh position={[0,1,0]}><boxGeometry args={[13,2,8]}/><meshStandardMaterial color="#677984" metalness={.4}/></mesh>{[-4,4].map(x=><mesh key={x} position={[x,2.2,0]}><cylinderGeometry args={[.2,.2,2.5,12]}/><meshStandardMaterial color="#e3b75c" emissive="#926c28" emissiveIntensity={.4}/></mesh>)}</group>
+    <mesh rotation={[-Math.PI/2,0,0]} position={[27,-.35,-38]}><circleGeometry args={[12,48]}/><meshStandardMaterial color="#367f91" roughness={.18} transparent opacity={.9}/></mesh>
     {GATES.map((p,i)=><group key={i} position={p}>
       <mesh rotation={[0,0,0]}>
         <torusGeometry args={[2.2,.16,12,48]}/>
@@ -86,19 +92,19 @@ export default function App(){
     const forward=((k.w||k.arrowup)?1:0)-((k.s||k.arrowdown)?1:0);
     const side=((k.d||k.arrowright)?1:0)-((k.a||k.arrowleft)?1:0);
     const vertical=((k[' ']||k.r)?1:0)-((k.shift||k.f)?1:0);
-    const v=9;const nx=THREE.MathUtils.clamp(p[0]+(Math.sin(y)*forward+Math.cos(y)*side)*v*dt,-55,55);
-    const nz=THREE.MathUtils.clamp(p[2]+(-Math.cos(y)*forward+Math.sin(y)*side)*v*dt,-125,18);
-    const ny=THREE.MathUtils.clamp(p[1]+vertical*v*.75*dt,1,35);
+    const v=10;const desired=[(Math.sin(y)*forward+Math.cos(y)*side)*v,vertical*v*.72,(-Math.cos(y)*forward+Math.sin(y)*side)*v];velocity.current=velocity.current.map((value,i)=>THREE.MathUtils.damp(value,desired[i],(forward||side||vertical)?13:3.8,dt));const nx=THREE.MathUtils.clamp(p[0]+velocity.current[0]*dt,-55,55);
+    const nz=THREE.MathUtils.clamp(p[2]+velocity.current[2]*dt,-125,18);
+    const ny=THREE.MathUtils.clamp(p[1]+velocity.current[1]*dt,1,35);
     posRef.current=[nx,ny,nz];yawRef.current=y;
     setBattery(b=>Math.max(0,b-dt*.12));
     GATES.forEach((g,i)=>{if(!passed.includes(i)&&Math.hypot(nx-g[0],ny-g[1],nz-g[2])<2.5){setPassed(old=>old.includes(i)?old:[...old,i]);setNotice('CHECKPOINT '+(i+1)+' CLEARED');}});
-    if(now-ui>90){setPos([...posRef.current]);setYaw(y);setSpeed(Math.round(Math.hypot(forward,side,vertical)*9));ui=now;}
+    if(now-ui>90){setPos([...posRef.current]);setYaw(y);setSpeed(Math.round(Math.hypot(...velocity.current)));ui=now;}
    }
    frame=requestAnimationFrame(tick);
   };frame=requestAnimationFrame(tick);
   return()=>{cancelAnimationFrame(frame);window.removeEventListener('keydown',down);window.removeEventListener('keyup',up)};
  },[paused,passed]);
- const reset=()=>{posRef.current=[0,5,4];yawRef.current=0;setPos([0,5,4]);setYaw(0);setPassed([]);setBattery(100);setNotice('FLIGHT RESET — READY');};
+ const reset=()=>{posRef.current=[0,5,4];yawRef.current=0;setPos([0,5,4]);setYaw(0);velocity.current=[0,0,0];setPassed([]);setBattery(100);setNotice('FLIGHT RESET — READY');};
  return <main className="sim-shell">
   <Canvas shadows dpr={[1,1.5]} camera={{position:[0,9,14],fov:65}}><Suspense fallback={null}><World position={pos} yaw={yaw} fpv={fpv} paused={paused} passed={passed}/></Suspense></Canvas>
   <div className="sim-top"><div className="sim-brand"><span>✦</span> SKY<span>CTRL</span><small>DRONE FLIGHT SIMULATOR</small></div><div className="sim-live"><i/> SIMULATION ONLINE <b>• TRAINING MODE</b></div><div className="sim-buttons"><button onClick={()=>setFpv(v=>!v)}><Camera size={16}/>{fpv?'CHASE CAM':'FPV VIEW'}</button><button onClick={()=>setPaused(v=>!v)}>{paused?<Play size={16}/>:<Pause size={16}/>}</button><button onClick={reset}><RotateCcw size={16}/></button></div></div>
