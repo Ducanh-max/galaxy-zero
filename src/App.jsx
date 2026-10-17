@@ -76,7 +76,7 @@ function Rotor({position}) {
 }
 
 export default function App(){
- const [pos,setPos]=useState([0,5,4]); const posRef=useRef([0,5,4]);
+ const [pos,setPos]=useState([0,5,4]); const posRef=useRef([0,5,4]); const velocity=useRef([0,0,0]);
  const [yaw,setYaw]=useState(0); const yawRef=useRef(0); const keys=useRef({});
  const [paused,setPaused]=useState(false),[fpv,setFpv]=useState(false),[passed,setPassed]=useState([]);
  const [battery,setBattery]=useState(100),[speed,setSpeed]=useState(0);
@@ -98,7 +98,7 @@ export default function App(){
     posRef.current=[nx,ny,nz];yawRef.current=y;
     setBattery(b=>Math.max(0,b-dt*.12));
     GATES.forEach((g,i)=>{if(!passed.includes(i)&&Math.hypot(nx-g[0],ny-g[1],nz-g[2])<2.5){setPassed(old=>old.includes(i)?old:[...old,i]);setNotice('CHECKPOINT '+(i+1)+' CLEARED');}});
-    if(now-ui>90){setPos([...posRef.current]);setYaw(y);setSpeed(Math.round(Math.hypot(...velocity.current)));ui=now;}
+    if(now-ui>40){setPos([...posRef.current]);setYaw(y);setSpeed(Math.round(Math.hypot(...velocity.current)));setBattery(b=>Math.max(0,b-dt*.12));ui=now;}
    }
    frame=requestAnimationFrame(tick);
   };frame=requestAnimationFrame(tick);
