@@ -2,7 +2,7 @@ import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Stars, Float, Sparkles } from '@react-three/drei';
 import * as THREE from 'three';
-import { BatteryCharging, Compass, Crosshair, Gem, Heart, Map, Pause, Play, Radio, Rocket, Shield, Volume2, VolumeX, Zap } from 'lucide-react';
+import { BatteryCharging, Compass, Crosshair, Gem, Heart, Map, Package, Pause, Play, Radio, Rocket, Shield, Volume2, VolumeX, Zap } from 'lucide-react';
 
 const PLANETS = [
   { id: 'elysium', name: 'ELYSIUM-4', title: 'Echoes of Elysium', ground: '#17233b', grid: '#294568', sky: '#4b4a9c', glow: '#8c79ff', resource: 'ENERGY SHARDS' },
@@ -178,7 +178,9 @@ export default function App() {
   const [player, setPlayer] = useState([0, 0, 0]);
   const [planetIndex, setPlanetIndex] = useState(0);
   const planet = PLANETS[planetIndex];
-  const [collected, setCollected] = useState([]);
+  const [collectedByPlanet, setCollectedByPlanet] = useState({});
+  const [inventoryOpen, setInventoryOpen] = useState(false);
+  const collected = collectedByPlanet[planet.id] || [];
   const [paused, setPaused] = useState(false);
   const [flying, setFlying] = useState(false);
   const [sound, setSound] = useState(false);
@@ -189,8 +191,12 @@ export default function App() {
   const collectedCount = collected.length;
 
   const collect = useCallback((index) => {
-    setCollected((old) => old.includes(index) ? old : [...old, index]);
-  }, []);
+    setCollectedByPlanet((old) => {
+      const current = old[planet.id] || [];
+      if (current.includes(index)) return old;
+      return { ...old, [planet.id]: [...current, index] };
+    });
+  }, [planet.id]);
 
   useEffect(() => {
     const down = (e) => {
@@ -198,6 +204,7 @@ export default function App() {
       keys.current[e.key.toLowerCase()] = true;
       if (e.key.toLowerCase() === 'p' || e.key === 'Escape') setPaused((v) => !v);
       if (e.key.toLowerCase() === 'e' && !e.repeat) setFlying((v) => !v);
+      if (e.key.toLowerCase() === 'i' && !e.repeat) setInventoryOpen((v) => !v);
     };
     const up = (e) => { keys.current[e.key.toLowerCase()] = false; };
     window.addEventListener('keydown', down);
@@ -255,13 +262,14 @@ export default function App() {
     <section className="planet-selector glass">
       <div className="eyebrow"><span className="eyebrow-line" /> STAR CHART</div>
       <div className="planet-options">
-        {PLANETS.map((item, index) => <button key={item.id} className={planetIndex === index ? 'planet-option active' : 'planet-option'} onClick={() => { setPlanetIndex(index); setPlayer([0, 0, 0]); playerRef.current = [0, 0, 0]; setCollected([]); }}>
+        {PLANETS.map((item, index) => <button key={item.id} className={planetIndex === index ? 'planet-option active' : 'planet-option'} onClick={() => { setPlanetIndex(index); setPlayer([0, 0, 0]); playerRef.current = [0, 0, 0]; }}>
           <span className={'planet-orb ' + item.id} />
           <span><strong>{item.name}</strong><small>{index === 0 ? 'HABITABLE' : index === 1 ? 'VOLCANIC' : 'FROZEN'}</small></span>
           <i>{planetIndex === index ? '●' : '○'}</i>
         </button>)}
       </div>
     </section>
+    <button className="inventory-trigger glass" onClick={() => setInventoryOpen((v) => !v)}><Package size={15} /> INVENTORY <span>{Object.values(collectedByPlanet).reduce((sum, items) => sum + items.length, 0)}</span></button>
     <section className="mission-card glass">
       <div className="eyebrow"><span className="eyebrow-line" /> CURRENT OBJECTIVE</div>
       <div className="mission-title">{planet.title}</div>
@@ -287,10 +295,11 @@ export default function App() {
       <div className="eyebrow"><span className="eyebrow-line" /> FLIGHT MANUAL</div>
       <div className="control-row"><div className="keycap">W</div><span>Move forward</span></div>
       <div className="control-row"><div className="keycap">A</div><div className="keycap">S</div><div className="keycap">D</div><span>Move around</span></div>
-      <div className="control-row"><div className="keycap">E</div><span>Enter / exit ship</span></div><div className="control-row"><div className="keycap">P</div><span>Pause mission</span></div>
+      <div className="control-row"><div className="keycap">E</div><span>Enter / exit ship</span></div><div className="control-row"><div className="keycap">I</div><span>Open inventory</span></div><div className="control-row"><div className="keycap">P</div><span>Pause mission</span></div>
     </aside>
 
 
+    {inventoryOpen && <section className="inventory-panel glass"><div className="inventory-heading"><div><div className="eyebrow"><span className="eyebrow-line" /> EXPLORER STORAGE</div><h3>RESOURCE INVENTORY</h3></div><button className="inventory-close" onClick={() => setInventoryOpen(false)}>×</button></div>{PLANETS.map((item) => { const count = (collectedByPlanet[item.id] || []).length; return <div className="inventory-item" key={item.id}><span className={'planet-orb ' + item.id} /><div><strong>{item.name}</strong><small>{item.resource}</small></div><b>{count} / {CRYSTALS.length}</b></div>; })}<p className="inventory-note">Resources remain stored when you travel between planets.</p></section>}
     <div className="bottom-center"><span className="bottom-line" /><Radio size={14} /><span>DEEP SPACE NETWORK</span><b>CONNECTED</b><span className="bottom-line" /></div>
     {paused && <div className="pause-overlay"><div className="pause-panel glass"><div className="pause-icon"><Pause size={24} /></div><div className="eyebrow">MISSION SUSPENDED</div><h1>TAKE A BREATH,<br /><span>EXPLORER.</span></h1><p>Your journey is waiting.</p><button className="primary-button" onClick={() => setPaused(false)}><Play size={16} fill="currentColor" /> RESUME MISSION</button></div></div>}
     <div className="crosshair"><Crosshair size={18} /></div>
