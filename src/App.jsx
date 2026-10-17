@@ -10,6 +10,8 @@ const PLANETS = [
   { id: 'cryon', name: 'CRYON-2', title: 'Whispers of Ice', ground: '#183642', grid: '#347080', sky: '#4d9db5', glow: '#8cecff', resource: 'FROST CRYSTALS' }
 ];
 
+const EMPTY_COLLECTED = [];
+
 const CRYSTALS = [
   [-5.5, 0.4, -3.5], [-2.8, 0.4, -6.2], [1.2, 0.4, -5.5],
   [5.4, 0.4, -2.2], [4.2, 0.4, 3.8], [-1.8, 0.4, 5.1]
@@ -180,7 +182,7 @@ export default function App() {
   const planet = PLANETS[planetIndex];
   const [collectedByPlanet, setCollectedByPlanet] = useState({});
   const [inventoryOpen, setInventoryOpen] = useState(false);
-  const collected = collectedByPlanet[planet.id] || [];
+  const collected = collectedByPlanet[planet.id] || EMPTY_COLLECTED;
   const [paused, setPaused] = useState(false);
   const [flying, setFlying] = useState(false);
   const [sound, setSound] = useState(false);
@@ -211,6 +213,7 @@ export default function App() {
     window.addEventListener('keyup', up);
     let frame;
     let previous = performance.now();
+    let lastUiUpdate = 0;
     const tick = (now) => {
       const dt = Math.min((now - previous) / 1000, 0.04);
       previous = now;
@@ -226,7 +229,10 @@ export default function App() {
           THREE.MathUtils.clamp(playerRef.current[2] + z * dt * (flying ? 9 : 5.2), -14, 14)
         ];
         playerRef.current = next;
-        setPlayer(next);
+        if (now - lastUiUpdate > 80) {
+          setPlayer([...next]);
+          lastUiUpdate = now;
+        }
         CRYSTALS.forEach((p, i) => {
           if (!collected.includes(i) && Math.hypot(next[0] - p[0], next[2] - p[2]) < 0.85) collect(i);
         });
