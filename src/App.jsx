@@ -288,7 +288,6 @@ export default function App() {
       <div className="control-row"><div className="keycap">E</div><span>Enter / exit ship</span></div><div className="control-row"><div className="keycap">P</div><span>Pause mission</span></div>
     </aside>
 
-    <div className="scanner glass"><div className="scanner-head"><Map size={14} /> LOCAL SCAN <span>LIVE</span></div><div className="radar"><div className="radar-sweep" /><div className="radar-center" /><i className="radar-dot dot-one" /><i className="radar-dot dot-two" /><i className="radar-dot dot-three" /></div><div className="scanner-foot"><span>{planet.name}</span><span>RANGE 1.2 KM</span></div></div>
 
     <div className="bottom-center"><span className="bottom-line" /><Radio size={14} /><span>DEEP SPACE NETWORK</span><b>CONNECTED</b><span className="bottom-line" /></div>
     {paused && <div className="pause-overlay"><div className="pause-panel glass"><div className="pause-icon"><Pause size={24} /></div><div className="eyebrow">MISSION SUSPENDED</div><h1>TAKE A BREATH,<br /><span>EXPLORER.</span></h1><p>Your journey is waiting.</p><button className="primary-button" onClick={() => setPaused(false)}><Play size={16} fill="currentColor" /> RESUME MISSION</button></div></div>}
