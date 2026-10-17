@@ -71,7 +71,7 @@ function World({ position, yaw, fpv, paused, onGate, passed, raceGate }) {
       <planeGeometry args={[260,260]} /><meshStandardMaterial color="#55745e" roughness={1}/>
     </mesh>
     <gridHelper args={[220,44,'#b7d0bb','#78947d']} position={[0,-.48,-45]}/>
-    {Array.from({length:34},(_,i)=>[-1,1].map(side=><mesh key={'edge'+i+'-'+side} position={[side*7,.05,-i*4-8]}><cylinderGeometry args={[.09,.09,.12,12}/><meshStandardMaterial color="#8af5ff" emissive="#37ddec" emissiveIntensity={2.2}/></mesh>))}
+    {Array.from({length:34},(_,i)=>[-1,1].map(side=><mesh key={'edge'+i+'-'+side} position={[side*7,.05,-i*4-8]}><cylinderGeometry args={[.09,.09,.12,12]}/><meshStandardMaterial color="#8af5ff" emissive="#37ddec" emissiveIntensity={2.2}/></mesh>))}
     <mesh rotation={[-Math.PI/2,0,0]} position={[0,-.39,-44]}><ringGeometry args={[18,18.35,96]}/><meshBasicMaterial color="#54e5ef" transparent opacity={.6}/></mesh>
     {Array.from({length:38},(_,i)=>{
       const x=Math.sin(i*12.3)*42, z=-i*4-10, h=4+(i%5)*2.5;
