@@ -55,14 +55,20 @@ function World({ position, yaw, fpv, paused, onGate, passed }) {
       <Html distanceFactor={18} position={[0,2.8,0]} center><div style={{color:'white',font:'bold 11px Arial',textShadow:'0 2px 5px #000'}}>GATE {i+1}</div></Html>
     </group>)}
     <group ref={drone}>
-      <mesh castShadow><boxGeometry args={[1.25,.22,.85]}/><meshStandardMaterial color="#202d3c" metalness={.8} roughness={.25}/></mesh>
-      <mesh position={[0,.13,.13]}><sphereGeometry args={[.28,24,16]}/><meshStandardMaterial color="#1b4056" metalness={.9} roughness={.12}/></mesh>
-      <mesh position={[0,0,.48]}><boxGeometry args={[.48,.09,.28]}/><meshStandardMaterial color="#35d8e8" emissive="#168da8" emissiveIntensity={1.3}/></mesh>
-      {[[-1,-1],[1,-1],[-1,1],[1,1]].map(([x,z],i)=><group key={i} position={[x*.82,0,z*.62]}>
-        <mesh><boxGeometry args={[.95,.09,.12]}/><meshStandardMaterial color="#9caebd" metalness={.7}/></mesh>
-        <Rotor position={[x*.46,.12,0]}/>
-        <mesh position={[0,-.1,0]}><cylinderGeometry args={[.09,.13,.2,12]}/><meshStandardMaterial color="#ffb84d" emissive="#d87820" emissiveIntensity={.6}/></mesh>
+      <mesh castShadow><boxGeometry args={[.72,.22,.92]}/><meshStandardMaterial color="#172536" metalness={.82} roughness={.22}/></mesh>
+      <mesh position={[0,.015,-.04]}><boxGeometry args={[1.02,.10,.48]}/><meshStandardMaterial color="#263c50" metalness={.72} roughness={.28}/></mesh>
+      <mesh position={[0,.13,.13]}><sphereGeometry args={[.25,24,16]}/><meshStandardMaterial color="#102d43" metalness={.9} roughness={.12}/></mesh>
+      <mesh position={[0,.015,.52]} rotation={[.35,0,0]}><sphereGeometry args={[.16,20,16]}/><meshStandardMaterial color="#07131f" metalness={.6}/></mesh>
+      <mesh position={[0,.015,.64]}><sphereGeometry args={[.075,16,12]}/><meshStandardMaterial color="#48eaff" emissive="#20cce8" emissiveIntensity={2.5}/></mesh>
+      {[[-1,-1],[1,-1],[-1,1],[1,1]].map(([x,z],i)=><group key={i} position={[x*.78,0,z*.66]}>
+        <mesh rotation={[0,Math.PI/4,0]}><boxGeometry args={[1.12,.075,.13]}/><meshStandardMaterial color="#526779" metalness={.85} roughness={.25}/></mesh>
+        <mesh position={[0,.10,0]}><cylinderGeometry args={[.19,.16,.15,20]}/><meshStandardMaterial color="#101b29" metalness={.8}/></mesh>
+        <Rotor position={[0,.20,0]}/>
+        <mesh position={[0,-.13,0]}><cylinderGeometry args={[.035,.045,.22,10]}/><meshStandardMaterial color="#a9bbc8" metalness={.8}/></mesh>
+        <mesh position={[0,-.24,0]}><sphereGeometry args={[.055,12,10]}/><meshStandardMaterial color={i%2?'#ff604f':'#48eaff'} emissive={i%2?'#ff3020':'#16b9df'} emissiveIntensity={1.5}/></mesh>
       </group>)}
+      <pointLight position={[0,0,.7]} color="#40eaff" intensity={1.5} distance={4}/>
+    </group>)}
       <pointLight position={[0,0,.7]} color="#40eaff" intensity={1.5} distance={4}/>
     </group>
     <Float speed={1.2} floatIntensity={.15}><mesh position={[-22,14,-65]}><sphereGeometry args={[7,32,32]}/><meshStandardMaterial color="#d7e4df" roughness={1}/></mesh></Float>
