@@ -14,12 +14,12 @@ function World({ position, yaw, fpv, paused, onGate, passed }) {
     drone.current.position.lerp(new THREE.Vector3(...position), 1 - Math.exp(-10 * dt));
     drone.current.rotation.y = THREE.MathUtils.damp(drone.current.rotation.y, yaw, 7, dt);
     drone.current.rotation.z = THREE.MathUtils.damp(drone.current.rotation.z, THREE.MathUtils.clamp(-Math.sin(yaw) * 0.13, -.18, .18), 4, dt);
-    drone.current.rotation.z = THREE.MathUtils.damp(drone.current.rotation.z, 0, 5, dt);
+
     const target = new THREE.Vector3(position[0], position[1], position[2]);
-    const offset = fpv ? new THREE.Vector3(0, .08, -.28) : new THREE.Vector3(0, 5.8, 12);
+    const offset = fpv ? new THREE.Vector3(0, .08, -.28) : new THREE.Vector3(0, 4.2, 9.5);
     offset.applyAxisAngle(new THREE.Vector3(0,1,0), yaw);
     const desired = target.clone().add(offset);
-    state.camera.position.lerp(desired, 1 - Math.exp(-3.2*dt));
+    state.camera.position.lerp(desired, 1 - Math.exp(-5.0*dt));
     cameraTarget.current.copy(target).add(new THREE.Vector3(0, fpv ? 0 : .2, 0));
     state.camera.lookAt(cameraTarget.current);
   });
@@ -92,13 +92,13 @@ export default function App(){
     const forward=((k.w||k.arrowup)?1:0)-((k.s||k.arrowdown)?1:0);
     const side=((k.d||k.arrowright)?1:0)-((k.a||k.arrowleft)?1:0);
     const vertical=((k[' ']||k.r)?1:0)-((k.shift||k.f)?1:0);
-    const v=10;const desired=[(Math.sin(y)*forward+Math.cos(y)*side)*v,vertical*v*.72,(-Math.cos(y)*forward+Math.sin(y)*side)*v];velocity.current=velocity.current.map((value,i)=>THREE.MathUtils.damp(value,desired[i],(forward||side||vertical)?13:3.8,dt));const nx=THREE.MathUtils.clamp(p[0]+velocity.current[0]*dt,-55,55);
+    const v=8.5;const desired=[(Math.sin(y)*forward+Math.cos(y)*side)*v,vertical*v*.72,(-Math.cos(y)*forward+Math.sin(y)*side)*v];velocity.current=velocity.current.map((value,i)=>THREE.MathUtils.damp(value,desired[i],(forward||side||vertical)?5.5:2.2,dt));const nx=THREE.MathUtils.clamp(p[0]+velocity.current[0]*dt,-55,55);
     const nz=THREE.MathUtils.clamp(p[2]+velocity.current[2]*dt,-125,18);
     const ny=THREE.MathUtils.clamp(p[1]+velocity.current[1]*dt,1,35);
     posRef.current=[nx,ny,nz];yawRef.current=y;
     setBattery(b=>Math.max(0,b-dt*.12));
     GATES.forEach((g,i)=>{if(!passed.includes(i)&&Math.hypot(nx-g[0],ny-g[1],nz-g[2])<2.5){setPassed(old=>old.includes(i)?old:[...old,i]);setNotice('CHECKPOINT '+(i+1)+' CLEARED');}});
-    if(now-ui>40){setPos([...posRef.current]);setYaw(y);setSpeed(Math.round(Math.hypot(...velocity.current)));setBattery(b=>Math.max(0,b-dt*.12));ui=now;}
+    if(now-ui>16){setPos([...posRef.current]);setYaw(y);setSpeed(Math.round(Math.hypot(...velocity.current)));setBattery(b=>Math.max(0,b-dt*.12));ui=now;}
    }
    frame=requestAnimationFrame(tick);
   };frame=requestAnimationFrame(tick);
