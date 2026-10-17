@@ -133,7 +133,7 @@ export default function App(){
  const [paused,setPaused]=useState(false),[fpv,setFpv]=useState(false);
  const [cameraYaw,setCameraYaw]=useState(0),[cameraPitch,setCameraPitch]=useState(0);
  const cameraDrag=useRef({active:false,x:0,y:0});
- const [battery,setBattery]=useState(100),[speed,setSpeed]=useState(0);\n const targetRef=useRef(new THREE.Vector3(0,8,-92));\n const [targetHealth,setTargetHealth]=useState(3),[targetFailed,setTargetFailed]=useState(false);\n const targetFailedRef=useRef(false),lastShot=useRef(0);
+ const [battery,setBattery]=useState(100),[speed,setSpeed]=useState(0);\n const targetRef=useRef(new THREE.Vector3(0,8,-92));\n const [targetHealth,setTargetHealth]=useState(3),[targetFailed,setTargetFailed]=useState(false);\n const targetHealthRef=useRef(3);targetHealthRef.current=targetHealth;\n const targetFailedRef=useRef(false),lastShot=useRef(0);
  const [maxSpeed,setMaxSpeed]=useState(8.5),[peerId,setPeerId]=useState(''),[phoneConnected,setPhoneConnected]=useState(false),[copied,setCopied]=useState(false);
  const remote=useRef({forward:0,side:0,vertical:0,yaw:0}); const maxSpeedRef=useRef(8.5);maxSpeedRef.current=maxSpeed;
  useEffect(()=>{
@@ -172,7 +172,7 @@ export default function App(){
   window.addEventListener('keydown',down);window.addEventListener('keyup',up);
   let frame,last=performance.now(),ui=0;
   const tick=now=>{const dt=Math.min((now-last)/1000,.04);last=now;
-   if(!paused){const k=keys.current;let p=posRef.current;let y=yawRef.current;\n    if(targetRef.current.z>-20 && targetHealth>0 && !targetFailedRef.current){targetFailedRef.current=true;setTargetFailed(true);setNotice('TARGET PASSED THE RUNWAY — MISSION FAILED');}\n    if(k.g && now-lastShot.current>550 && targetHealth>0 && !targetFailedRef.current){lastShot.current=now;const dx=targetRef.current.x-p[0],dz=targetRef.current.z-p[2],distance=Math.hypot(dx,dz);const aimX=Math.sin(y),aimZ=-Math.cos(y);const dot=(dx*aimX+dz*aimZ)/(distance||1);if(distance<65&&dot>.94){setTargetHealth(h=>Math.max(0,h-1));setNotice('ENERGY PULSE HIT — TARGET '+Math.max(0,targetHealth-1)+'/3');}else setNotice('ALIGN THE FPV CROSSHAIR WITH THE TRAINING TARGET');}
+   if(!paused){const k=keys.current;let p=posRef.current;let y=yawRef.current;\n    if(targetRef.current.z>-20 && targetHealthRef.current>0 && !targetFailedRef.current){targetFailedRef.current=true;setTargetFailed(true);setNotice('TARGET PASSED THE RUNWAY — MISSION FAILED');}\n    if(k.g && now-lastShot.current>550 && targetHealthRef.current>0 && !targetFailedRef.current){lastShot.current=now;const dx=targetRef.current.x-p[0],dz=targetRef.current.z-p[2],distance=Math.hypot(dx,dz);const aimX=Math.sin(y),aimZ=-Math.cos(y);const dot=(dx*aimX+dz*aimZ)/(distance||1);if(distance<65&&dot>.94){setTargetHealth(h=>Math.max(0,h-1));setNotice('ENERGY PULSE HIT — TARGET '+Math.max(0,targetHealthRef.current-1)+'/3');}else setNotice('ALIGN THE FPV CROSSHAIR WITH THE TRAINING TARGET');}
     y+=((k.q?1:0)-(k.e?1:0)+remote.current.yaw)*dt*1.5;
     const forward=THREE.MathUtils.clamp((((k.w||k.arrowup)?1:0)-((k.s||k.arrowdown)?1:0))+remote.current.forward,-1,1);
     const side=THREE.MathUtils.clamp((((k.d||k.arrowright)?1:0)-((k.a||k.arrowleft)?1:0))+remote.current.side,-1,1);
