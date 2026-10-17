@@ -15,3 +15,20 @@
 .planet-orb.cryon{background:linear-gradient(135deg,#c5f7ff,#327f9a)}
 @media(max-width:760px){.planet-selector{top:350px;left:14px;width:180px;padding:10px}.planet-option{padding:6px;gap:7px}.planet-option strong{font-size:8px}}
 @media(max-width:440px){.planet-selector{top:350px;width:calc(100% - 28px)}.planet-options{grid-template-columns:repeat(3,minmax(0,1fr))}.planet-option{gap:5px;padding:6px 4px}.planet-option>span:nth-child(2){min-width:0}.planet-option strong{font-size:7px}.planet-option small{font-size:7px}.planet-option i{display:none}.planet-orb{width:18px;height:18px;flex:none}}
+
+/* Planetary resource inventory */
+.inventory-trigger{position:absolute;z-index:3;right:270px;top:350px;display:flex;align-items:center;gap:8px;padding:10px 13px;color:#9fc8e5;font:700 9px Orbitron,sans-serif;letter-spacing:.8px;cursor:pointer}
+.inventory-trigger svg{color:#63dfff}.inventory-trigger span{color:#62edc3}
+.inventory-trigger:hover{border-color:rgba(91,220,255,.6);color:#eaf8ff}
+.inventory-panel{position:absolute;z-index:5;right:34px;top:395px;width:290px;padding:17px}
+.inventory-heading{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:15px}
+.inventory-heading h3{font:700 13px Orbitron,sans-serif;letter-spacing:.8px;margin:10px 0 0;color:#eaf5ff}
+.inventory-close{border:1px solid rgba(126,168,211,.2);border-radius:5px;background:rgba(17,34,59,.6);color:#9fc8e5;font-size:22px;line-height:22px;width:28px;height:28px;cursor:pointer}
+.inventory-item{display:flex;align-items:center;gap:10px;padding:11px 8px;border-top:1px solid rgba(130,175,220,.12)}
+.inventory-item>div{display:grid;gap:4px;flex:1}
+.inventory-item strong{font:600 9px Orbitron,sans-serif;color:#e3f1ff}
+.inventory-item small{font:600 8px Rajdhani,sans-serif;letter-spacing:.8px;color:#829bb8}
+.inventory-item>b{font:700 11px Orbitron,sans-serif;color:#63e2ff}
+.inventory-note{font-size:11px;line-height:1.4;color:#7894b5;margin:12px 2px 0}
+@media(max-width:760px){.inventory-trigger{top:auto;right:14px;bottom:205px}.inventory-panel{right:14px;top:350px;width:min(290px,calc(100% - 28px))}}
+@media(max-width:440px){.inventory-trigger{bottom:205px}.inventory-panel{top:350px}}
