@@ -122,7 +122,28 @@ function Drone({ position, index }) {
   </group>;
 }
 
-function World({ player, collected, onCollect }) {
+function Spaceship({ position, flying }) {
+  const ref = useRef();
+  useFrame((state, delta) => {
+    if (!ref.current) return;
+    ref.current.position.x = THREE.MathUtils.damp(ref.current.position.x, position[0], 7, delta);
+    ref.current.position.z = THREE.MathUtils.damp(ref.current.position.z, position[2], 7, delta);
+    ref.current.position.y = THREE.MathUtils.damp(ref.current.position.y, flying ? 2.4 : 0.15, 7, delta);
+    ref.current.rotation.z = THREE.MathUtils.damp(ref.current.rotation.z, flying ? -0.08 : 0, 5, delta);
+  });
+  return <group ref={ref} position={[0, 0.15, 7]}>
+    <mesh castShadow rotation={[0, 0, Math.PI / 2]}><capsuleGeometry args={[0.48, 2.3, 8, 16]} /><meshStandardMaterial color="#dce9f7" metalness={0.72} roughness={0.24} /></mesh>
+    <mesh position={[0, 0.18, -0.1]}><sphereGeometry args={[0.43, 24, 16]} /><meshStandardMaterial color="#183b61" metalness={0.8} roughness={0.12} /></mesh>
+    <mesh position={[0, -0.02, 1.25]} rotation={[0, 0, Math.PI / 2]}><coneGeometry args={[0.34, 0.9, 8]} /><meshStandardMaterial color="#5bdfff" emissive="#168bb0" emissiveIntensity={1.2} /></mesh>
+    {[-1, 1].map((side) => <group key={side} position={[side * 0.72, -0.18, 0]}>
+      <mesh rotation={[0, 0, side * -0.12]}><boxGeometry args={[0.12, 0.9, 1.1]} /><meshStandardMaterial color="#8ba7c5" metalness={0.6} /></mesh>
+      <mesh position={[0, -0.12, -0.56]}><cylinderGeometry args={[0.12, 0.2, 0.28, 12]} /><meshBasicMaterial color="#54dfff" /></mesh>
+    </group>)}
+    <pointLight position={[0, 0, -1.2]} color="#39cfff" intensity={flying ? 3 : 0.7} distance={4} />
+  </group>;
+}
+
+function World({ player, collected, onCollect, flying }) {
   return <>
     <color attach="background" args={['#050816']} />
     <fog attach="fog" args={['#070d20', 18, 48]} />
@@ -133,7 +154,8 @@ function World({ player, collected, onCollect }) {
     <Sparkles count={90} scale={25} size={2} speed={0.25} color="#8d9eff" />
     <PlanetBackdrop />
     <Ground />
-    <Astronaut position={player} />
+    {!flying && <Astronaut position={player} />}
+    <Spaceship position={player} flying={flying} />
     {CRYSTALS.map((p, i) => <Crystal key={i} position={p} index={i} collected={collected.includes(i)} onCollect={() => onCollect(i)} />)}
     <Drone position={[-7, 0, 2]} index={1} />
     <Drone position={[7, 0, 5]} index={2} />
@@ -147,7 +169,7 @@ function World({ player, collected, onCollect }) {
 export default function App() {
   const [player, setPlayer] = useState([0, 0, 0]);
   const [collected, setCollected] = useState([]);
-  const [paused, setPaused] = useState(false);
+  const [paused, setPaused] = useState(false);\n  const [flying, setFlying] = useState(false);
   const [sound, setSound] = useState(false);
   const [health] = useState(100);
   const [energy] = useState(86);
@@ -163,7 +185,7 @@ export default function App() {
     const down = (e) => {
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) e.preventDefault();
       keys.current[e.key.toLowerCase()] = true;
-      if (e.key.toLowerCase() === 'p' || e.key === 'Escape') setPaused((v) => !v);
+      if (e.key.toLowerCase() === 'p' || e.key === 'Escape') setPaused((v) => !v);\n      if (e.key.toLowerCase() === 'e' && !e.repeat) setFlying((v) => !v);
     };
     const up = (e) => { keys.current[e.key.toLowerCase()] = false; };
     window.addEventListener('keydown', down);
@@ -180,7 +202,7 @@ export default function App() {
         const length = Math.hypot(x, z) || 1;
         x /= length; z /= length;
         const next = [
-          THREE.MathUtils.clamp(playerRef.current[0] + x * dt * 5.2, -14, 14),
+          THREE.MathUtils.clamp(playerRef.current[0] + x * dt * (flying ? 9 : 5.2), -14, 14),
           0,
           THREE.MathUtils.clamp(playerRef.current[2] + z * dt * 5.2, -14, 14)
         ];
@@ -198,19 +220,19 @@ export default function App() {
       window.removeEventListener('keyup', up);
       cancelAnimationFrame(frame);
     };
-  }, [paused, collected, collect]);
+  }, [paused, collected, collect, flying]);
 
   const progress = Math.round((collectedCount / CRYSTALS.length) * 100);
   return <main className="game-shell">
     <Canvas shadows camera={{ position: [0, 7.5, 11], fov: 48 }} dpr={[1, 1.7]}>
       <Suspense fallback={null}>
-        <World player={player} collected={collected} onCollect={collect} />
+        <World player={player} collected={collected} onCollect={collect} flying={flying} />
       </Suspense>
     </Canvas>
     <div className="vignette" />
     <header className="topbar">
       <a className="brand" href="#"><span className="brand-mark"><Rocket size={19} /></span><span>GALAXY<span className="brand-accent">ZERO</span><small>THE FRONTIER AWAITS</small></span></a>
-      <div className="sector-pill"><span className="live-dot" /> SECTOR 07 <i /> ELYSIUM-4</div>
+      <div className="sector-pill"><span className="live-dot" /> SECTOR 07 <i /> ELYSIUM-4 <i /> {flying ? "FLIGHT MODE" : "ON FOOT"}</div>
       <div className="top-actions">
         <button className="icon-button" onClick={() => setSound(!sound)} aria-label="Toggle sound">{sound ? <Volume2 size={18} /> : <VolumeX size={18} />}</button>
         <button className="icon-button" onClick={() => setPaused(!paused)} aria-label="Pause">{paused ? <Play size={18} /> : <Pause size={18} />}</button>
@@ -243,7 +265,7 @@ export default function App() {
       <div className="eyebrow"><span className="eyebrow-line" /> FLIGHT MANUAL</div>
       <div className="control-row"><div className="keycap">W</div><span>Move forward</span></div>
       <div className="control-row"><div className="keycap">A</div><div className="keycap">S</div><div className="keycap">D</div><span>Move around</span></div>
-      <div className="control-row"><div className="keycap">P</div><span>Pause mission</span></div>
+      <div className="control-row"><div className="keycap">E</div><span>Enter / exit ship</span></div><div className="control-row"><div className="keycap">P</div><span>Pause mission</span></div>
     </aside>
 
     <div className="scanner glass"><div className="scanner-head"><Map size={14} /> LOCAL SCAN <span>LIVE</span></div><div className="radar"><div className="radar-sweep" /><div className="radar-center" /><i className="radar-dot dot-one" /><i className="radar-dot dot-two" /><i className="radar-dot dot-three" /></div><div className="scanner-foot"><span>ELYSIUM-4</span><span>RANGE 1.2 KM</span></div></div>
@@ -251,6 +273,6 @@ export default function App() {
     <div className="bottom-center"><span className="bottom-line" /><Radio size={14} /><span>DEEP SPACE NETWORK</span><b>CONNECTED</b><span className="bottom-line" /></div>
     {paused && <div className="pause-overlay"><div className="pause-panel glass"><div className="pause-icon"><Pause size={24} /></div><div className="eyebrow">MISSION SUSPENDED</div><h1>TAKE A BREATH,<br /><span>EXPLORER.</span></h1><p>Your journey is waiting.</p><button className="primary-button" onClick={() => setPaused(false)}><Play size={16} fill="currentColor" /> RESUME MISSION</button></div></div>}
     <div className="crosshair"><Crosshair size={18} /></div>
-    <div className="toast"><Zap size={14} /> Explore the surface and recover all energy shards</div>
+    <div className="toast"><Zap size={14} /> {flying ? "Flight mode active — explore faster" : "Press E to board your ship, then explore the surface"}</div>
   </main>;
 }
