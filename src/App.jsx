@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { Battery, Camera, Gauge, Navigation, Pause, Play, RotateCcw, Signal, Wind, Smartphone, Wifi, Copy, Check } from 'lucide-react';
 
 const GATES = [[0,3,-18],[11,5,-34],[-10,7,-50],[2,4,-68],[16,8,-86],[-13,5,-105]];
+const RACE_GATES = [[0,5,-22],[13,6,-35],[0,7,-49],[-13,6,-35]];
 function loadPeerJS(){
  return new Promise((resolve,reject)=>{
   if(window.Peer)return resolve(window.Peer);
@@ -38,7 +39,7 @@ function PhoneController({peerId}){
  <p className="phone-hint">Giữ nút để điều khiển • Thả tay để dừng</p></main>;
 }
 
-function World({ position, yaw, fpv, paused, onGate, passed }) {
+function World({ position, yaw, fpv, paused, onGate, passed, raceGate }) {
   const drone = useRef();
   const cameraTarget = useRef(new THREE.Vector3());
   useFrame((state, dt) => {
@@ -62,11 +63,16 @@ function World({ position, yaw, fpv, paused, onGate, passed }) {
     <ambientLight intensity={1.15} />
     <hemisphereLight args={['#d8f2ff','#526b49',1.1]} />
     <directionalLight position={[-30,45,20]} intensity={2.2} castShadow shadow-mapSize={[2048,2048]} />
-    <Stars radius={180} depth={80} count={900} factor={2} fade speed={0.15}/>
+    <Stars radius={180} depth={80} count={1600} factor={2.4} fade speed={0.2}/>
+    <mesh position={[-48,38,-115]}><sphereGeometry args={[13,32,24]}/><meshBasicMaterial color="#ffd9a1"/></mesh>
+    {Array.from({length:9},(_,i)=><group key={'cloud'+i} position={[Math.sin(i*8)*42,15+(i%3)*5,-18-i*15]}>{[0,1,2].map(j=><mesh key={j} position={[(j-1)*2.4,Math.sin(j*2+i)*.5,0]} scale={[1.8,1,.9]}><sphereGeometry args={[1,16,12]}/><meshStandardMaterial color="#e9f5f4" transparent opacity={.34} roughness={1}/></mesh>)}</group>)}
+    {Array.from({length:32},(_,i)=><group key={'ridge'+i} position={[(i-16)*9,-.5,-118-(i%4)*5]}><mesh><coneGeometry args={[8+(i%5)*2,12+(i%4)*4,5]}/><meshStandardMaterial color={i%2?'#456c70':'#567b7b'} roughness={1}/></mesh><mesh position={[0,3,0]}><coneGeometry args={[4+(i%3),7,5]}/><meshStandardMaterial color="#78938b" roughness={1}/></mesh></group>)}
     <mesh rotation={[-Math.PI/2,0,0]} position={[0,-.5,-45]} receiveShadow>
       <planeGeometry args={[260,260]} /><meshStandardMaterial color="#55745e" roughness={1}/>
     </mesh>
     <gridHelper args={[220,44,'#b7d0bb','#78947d']} position={[0,-.48,-45]}/>
+    {Array.from({length:34},(_,i)=>[-1,1].map(side=><mesh key={'edge'+i+'-'+side} position={[side*7,.05,-i*4-8]}><cylinderGeometry args={[.09,.09,.12,12}/><meshStandardMaterial color="#8af5ff" emissive="#37ddec" emissiveIntensity={2.2}/></mesh>))}
+    <mesh rotation={[-Math.PI/2,0,0]} position={[0,-.39,-44]}><ringGeometry args={[18,18.35,96]}/><meshBasicMaterial color="#54e5ef" transparent opacity={.6}/></mesh>
     {Array.from({length:38},(_,i)=>{
       const x=Math.sin(i*12.3)*42, z=-i*4-10, h=4+(i%5)*2.5;
       return <group key={i} position={[x,h/2,z]}>
@@ -79,6 +85,7 @@ function World({ position, yaw, fpv, paused, onGate, passed }) {
     <group position={[-17,0,-28]}><mesh position={[0,.2,0]}><cylinderGeometry args={[5,5,.4,32]}/><meshStandardMaterial color="#4c5c66" metalness={.4}/></mesh><mesh position={[0,1.3,0]}><cylinderGeometry args={[1.3,1.8,2.2,12]}/><meshStandardMaterial color="#b5c5cc" metalness={.7}/></mesh><mesh position={[0,2.5,0]}><sphereGeometry args={[.8,20,16]}/><meshStandardMaterial color="#55d9e7" emissive="#168c9a" emissiveIntensity={.8}/></mesh></group>
     <group position={[23,0,-74]}><mesh position={[0,1,0]}><boxGeometry args={[13,2,8]}/><meshStandardMaterial color="#677984" metalness={.4}/></mesh>{[-4,4].map(x=><mesh key={x} position={[x,2.2,0]}><cylinderGeometry args={[.2,.2,2.5,12]}/><meshStandardMaterial color="#e3b75c" emissive="#926c28" emissiveIntensity={.4}/></mesh>)}</group>
     <mesh rotation={[-Math.PI/2,0,0]} position={[27,-.35,-38]}><circleGeometry args={[12,48]}/><meshStandardMaterial color="#367f91" roughness={.18} transparent opacity={.9}/></mesh>
+    {RACE_GATES.map((p,i)=><group key={'race'+i} position={p}><mesh><torusGeometry args={[2.65,.13,12,48]}/><meshStandardMaterial color={raceGate===i?'#6affdc':'#4aaec7'} emissive={raceGate===i?'#36ffcf':'#176d9a'} emissiveIntensity={raceGate===i?2.5:1.1} metalness={.65}/></mesh><pointLight color={raceGate===i?'#62ffd9':'#36b9ed'} intensity={raceGate===i?2.1:.7} distance={7}/><Html distanceFactor={18} position={[0,3.2,0]} center><div style={{color:'#eaffff',font:'bold 10px Arial',textShadow:'0 2px 5px #00131d'}}>LAP {i+1}</div></Html></group>)}
     {GATES.map((p,i)=><group key={i} position={p}>
       <mesh rotation={[0,0,0]}>
         <torusGeometry args={[2.2,.16,12,48]}/>
@@ -120,6 +127,8 @@ export default function App(){
  const [paused,setPaused]=useState(false),[fpv,setFpv]=useState(false),[passed,setPassed]=useState([]);
  const [battery,setBattery]=useState(100),[speed,setSpeed]=useState(0);
  const [maxSpeed,setMaxSpeed]=useState(8.5),[peerId,setPeerId]=useState(''),[phoneConnected,setPhoneConnected]=useState(false),[copied,setCopied]=useState(false);
+ const [missionId,setMissionId]=useState('laps'),[missionStatus,setMissionStatus]=useState('READY'),[missionTime,setMissionTime]=useState(0),[lapCount,setLapCount]=useState(0),[raceGate,setRaceGate]=useState(0);
+ const missionActive=useRef(false),missionStart=useRef(0),lapRef=useRef(0),raceGateRef=useRef(0);
  const remote=useRef({forward:0,side:0,vertical:0,yaw:0}); const maxSpeedRef=useRef(8.5);maxSpeedRef.current=maxSpeed;
  useEffect(()=>{
   let peer;
@@ -153,21 +162,39 @@ export default function App(){
     const nz=THREE.MathUtils.clamp(p[2]+velocity.current[2]*dt,-125,18);
     const ny=THREE.MathUtils.clamp(p[1]+velocity.current[1]*dt,1,35);
     posRef.current=[nx,ny,nz];yawRef.current=y;
-    GATES.forEach((g,i)=>{if(!passed.includes(i)&&Math.hypot(nx-g[0],ny-g[1],nz-g[2])<2.5){setPassed(old=>old.includes(i)?old:[...old,i]);setNotice('CHECKPOINT '+(i+1)+' CLEARED');}});
+    if(missionActive.current){
+      const elapsed=(now-missionStart.current)/1000;
+      if(now%100<45)setMissionTime(elapsed);
+      if(missionId==='laps'){
+        const rg=RACE_GATES[raceGateRef.current];
+        if(Math.hypot(nx-rg[0],ny-rg[1],nz-rg[2])<3.1){
+          const next=(raceGateRef.current+1)%RACE_GATES.length;raceGateRef.current=next;setRaceGate(next);
+          if(next===0){lapRef.current+=1;setLapCount(lapRef.current);setNotice('LAP '+lapRef.current+' / 5 COMPLETE');}else setNotice('RACE CHECKPOINT '+next+' / 4');
+          if(lapRef.current>=5){missionActive.current=false;setMissionStatus('COMPLETE');setNotice('MISSION COMPLETE — 5 LAPS!');}
+        }
+      }else if(missionId==='gates'){
+        GATES.forEach((g,i)=>{if(!passed.includes(i)&&Math.hypot(nx-g[0],ny-g[1],nz-g[2])<2.5){setPassed(old=>old.includes(i)?old:[...old,i]);setNotice('CHECKPOINT '+(i+1)+' CLEARED');}});
+        if(passed.length>=5){missionActive.current=false;setMissionStatus('COMPLETE');setNotice('MISSION COMPLETE — GATE RUN!');}
+      }
+      const limit=missionId==='laps'?60:45;
+      if(elapsed>limit&&missionActive.current){missionActive.current=false;setMissionStatus('FAILED');setNotice('TIME UP — TRY AGAIN');}
+    }
     if(now-ui>50){setPos([...posRef.current]);setYaw(y);setSpeed(Math.round(Math.hypot(...velocity.current)));setBattery(b=>Math.max(0,b-dt*.12));ui=now;}
    }
    frame=requestAnimationFrame(tick);
   };frame=requestAnimationFrame(tick);
   return()=>{cancelAnimationFrame(frame);window.removeEventListener('keydown',down);window.removeEventListener('keyup',up)};
- },[paused,passed]);
- const reset=()=>{posRef.current=[0,5,4];yawRef.current=0;setPos([0,5,4]);setYaw(0);velocity.current=[0,0,0];setPassed([]);setBattery(100);setNotice('FLIGHT RESET — READY');};
+ },[paused,passed,missionId]);
+ const startMission=()=>{missionActive.current=true;missionStart.current=performance.now();lapRef.current=0;raceGateRef.current=0;setLapCount(0);setRaceGate(0);setMissionTime(0);setPassed([]);setMissionStatus('RUNNING');setNotice('MISSION START — GOOD LUCK!');};
+ const reset=()=>{missionActive.current=false;posRef.current=[0,5,4];yawRef.current=0;setPos([0,5,4]);setYaw(0);velocity.current=[0,0,0];setPassed([]);lapRef.current=0;raceGateRef.current=0;setLapCount(0);setRaceGate(0);setMissionTime(0);setMissionStatus('READY');setBattery(100);setNotice('FLIGHT RESET — READY');};
  return <main className="sim-shell">
-  <Canvas shadows dpr={[1,1.5]} camera={{position:[0,9,14],fov:65}}><Suspense fallback={null}><World position={pos} yaw={yaw} fpv={fpv} paused={paused} passed={passed}/></Suspense></Canvas>
+  <Canvas shadows dpr={[1,1.5]} camera={{position:[0,9,14],fov:65}}><Suspense fallback={null}><World position={pos} yaw={yaw} fpv={fpv} paused={paused} passed={passed} raceGate={raceGate}/></Suspense></Canvas>
   <div className="sim-top"><div className="sim-brand"><span>✦</span> SKY<span>CTRL</span><small>DRONE FLIGHT SIMULATOR</small></div><div className="sim-live"><i/> SIMULATION ONLINE <b>• TRAINING MODE</b></div><div className="sim-buttons"><button onClick={()=>setFpv(v=>!v)}><Camera size={16}/>{fpv?'CHASE CAM':'FPV VIEW'}</button><button onClick={()=>setPaused(v=>!v)}>{paused?<Play size={16}/>:<Pause size={16}/>}</button><button onClick={reset}><RotateCcw size={16}/></button></div></div>
   <section className="sim-card sim-left"><div className="sim-label">FLIGHT TELEMETRY</div><div className="sim-metric"><span>ALTITUDE</span><strong>{pos[1].toFixed(1)} <small>m</small></strong></div><div className="sim-metric"><span>GROUND SPEED</span><strong>{speed.toFixed(0)} <small>m/s</small></strong></div><div className="sim-metric"><span>HEADING</span><strong>{((yaw*180/Math.PI+360)%360).toFixed(0)}°</strong></div><div className="sim-divider"/><div className="sim-battery"><Battery size={15}/><span>BATTERY</span><b>{battery.toFixed(0)}%</b></div><div className="sim-batbar"><i style={{width:battery+'%'}}/></div><div className="sim-signal"><Signal size={14}/> GPS LOCK <b>STRONG</b></div></section>
   <section className="sim-card sim-right"><div className="sim-label">FLIGHT PLAN</div><h3>GATE RUN</h3><p>Fly through the illuminated checkpoints in sequence.</p><div className="sim-progress"><i style={{width:(passed.length/6*100)+'%'}}/></div><div className="sim-gates"><b>{String(passed.length).padStart(2,'0')}</b> / 06 CHECKPOINTS</div>{passed.length===6&&<div className="sim-success">✦ FLIGHT COMPLETE</div>}</section>
   <section className="sim-card sim-speed-panel"><div className="sim-label"><Gauge size={13}/> SPEED CONTROL</div><div className="sim-speed-value">{maxSpeed.toFixed(1)} <small>m/s</small></div><input aria-label="Maximum flight speed" type="range" min="1" max="20" step=".5" value={maxSpeed} onChange={e=>setMaxSpeed(Number(e.target.value))}/><div className="sim-speed-scale"><span>1 SLOW</span><span>20 FAST</span></div><div className="sim-speed-presets">{[3,8.5,14,20].map(v=><button key={v} className={maxSpeed===v?'active':''} onClick={()=>setMaxSpeed(v)}>{v===3?'SLOW':v===8.5?'NORMAL':v===14?'FAST':'MAX'}</button>)}</div></section>
   <section className="sim-card sim-phone-panel"><div className="sim-label"><Smartphone size={13}/> PHONE LINK</div><div className="sim-phone-state"><i className={phoneConnected?'connected':''}/>{phoneConnected?'PHONE CONNECTED':'PAIR YOUR PHONE'}</div>{peerId?<><img className="sim-qr" alt="QR code to connect phone controller" src={'https://api.qrserver.com/v1/create-qr-code/?size=132x132&data='+encodeURIComponent(phoneUrl)}/><button className="sim-copy-link" onClick={copyPhoneLink}>{copied?<Check size={13}/>:<Copy size={13}/>} {copied?'COPIED':'COPY PHONE LINK'}</button><small>Quét mã QR bằng điện thoại cùng mạng internet.</small></>:<small>Đang tạo mã kết nối...</small>}</section>
+  <section className="sim-card sim-mission-panel"><div className="sim-label"><Navigation size={13}/> MISSION CONTROL</div><div className="mission-tabs"><button className={missionId==='laps'?'selected':''} onClick={()=>{missionActive.current=false;setMissionId('laps');setMissionStatus('READY');setMissionTime(0);setLapCount(0);setRaceGate(0);}}>LAP CHALLENGE</button><button className={missionId==='gates'?'selected':''} onClick={()=>{missionActive.current=false;setMissionId('gates');setMissionStatus('READY');setMissionTime(0);setPassed([]);}}>GATE RUN</button></div><h3>{missionId==='laps'?'5 LAPS / 60 SECONDS':'6 GATES / 45 SECONDS'}</h3><p>{missionId==='laps'?'Hoàn thành 5 vòng qua 4 cổng đua phát sáng.':'Bay qua đủ 6 checkpoint theo đường bay.'}</p><div className="mission-progress"><i style={{width:(missionId==='laps'?lapCount/5:passed.length/6)*100+'%'}}/></div><div className="mission-stats"><b>{missionId==='laps'?lapCount+'/5':passed.length+'/6'}</b><strong>{missionTime.toFixed(1)}s</strong></div><div className={'mission-status '+missionStatus.toLowerCase()}>{missionStatus==='RUNNING'?'● IN PROGRESS':missionStatus==='COMPLETE'?'✦ MISSION COMPLETE':missionStatus==='FAILED'?'TIME EXPIRED':'READY TO START'}</div><button className="mission-start" onClick={startMission}>{missionStatus==='RUNNING'?'RESTART MISSION':'START MISSION'}</button></section>
   <div className="sim-notice">{notice}</div>
   <div className="sim-controls"><div className="sim-label">CONTROLS</div><div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>MOVE</span></div><div><kbd>SPACE</kbd><kbd>SHIFT</kbd><span>UP / DOWN</span></div><div><kbd>Q</kbd><kbd>E</kbd><span>YAW LEFT / RIGHT</span></div><div><kbd>C</kbd><span>FPV / CHASE CAMERA</span></div><div><kbd>P</kbd><span>PAUSE</span></div></div>
   <div className="sim-crosshair">＋</div>
