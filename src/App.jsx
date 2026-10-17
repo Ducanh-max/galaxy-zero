@@ -2,9 +2,41 @@ import React, { Suspense, useEffect, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Stars, Float, Sparkles, Html } from '@react-three/drei';
 import * as THREE from 'three';
-import { Battery, Camera, Gauge, Navigation, Pause, Play, RotateCcw, Signal, Wind } from 'lucide-react';
+import { Battery, Camera, Gauge, Navigation, Pause, Play, RotateCcw, Signal, Wind, Smartphone, Wifi, Copy, Check } from 'lucide-react';
 
 const GATES = [[0,3,-18],[11,5,-34],[-10,7,-50],[2,4,-68],[16,8,-86],[-13,5,-105]];
+function loadPeerJS(){
+ return new Promise((resolve,reject)=>{
+  if(window.Peer)return resolve(window.Peer);
+  const old=document.querySelector('script[data-peerjs]');
+  if(old){old.addEventListener('load',()=>resolve(window.Peer),{once:true});old.addEventListener('error',reject,{once:true});return;}
+  const script=document.createElement('script');script.src='https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js';script.dataset.peerjs='1';
+  script.onload=()=>window.Peer?resolve(window.Peer):reject(new Error('PeerJS unavailable'));
+  script.onerror=()=>reject(new Error('Could not load PeerJS'));document.head.appendChild(script);
+ });
+}
+function PhoneController({peerId}){
+ const [status,setStatus]=useState('CONNECTING');
+ const [speed,setSpeed]=useState(8.5);
+ const connRef=useRef(null), controls=useRef({forward:0,side:0,vertical:0,yaw:0});
+ useEffect(()=>{
+  let peer, timer;
+  loadPeerJS().then(Peer=>{
+   peer=new Peer();
+   peer.on('open',()=>{const c=peer.connect(peerId,{reliable:true});connRef.current=c;c.on('open',()=>setStatus('CONNECTED'));c.on('close',()=>setStatus('DISCONNECTED'));c.on('error',()=>setStatus('CONNECTION ERROR'));});
+   peer.on('error',()=>setStatus('CONNECTION ERROR'));
+   timer=setInterval(()=>{if(connRef.current?.open)connRef.current.send({...controls.current,speed});},40);
+  }).catch(()=>setStatus('NETWORK ERROR'));
+  return()=>{clearInterval(timer);try{peer?.destroy();}catch{}};
+ },[peerId,speed]);
+ const press=(key,value)=>e=>{e.preventDefault();controls.current[key]=value;};
+ const pad=(label,key,value,cls='')=><button className={'phone-pad '+cls} onPointerDown={press(key,value)} onPointerUp={press(key,0)} onPointerLeave={press(key,0)} onContextMenu={e=>e.preventDefault()}>{label}</button>;
+ return <main className="phone-controller"><header><div className="phone-logo">✦ SKY<span>CTRL</span></div><div className={'phone-status '+(status==='CONNECTED'?'is-connected':'')}>{status}</div></header>
+ <section className="phone-speed"><label>FLIGHT SPEED <b>{speed.toFixed(1)} m/s</b></label><input type="range" min="1" max="20" step=".5" value={speed} onChange={e=>setSpeed(Number(e.target.value))}/><div><span>SLOW</span><span>FAST</span></div></section>
+ <section className="phone-flight"><div className="phone-section-title">MOVEMENT</div><div className="phone-pad-grid">{pad('▲','forward',1,'up')}{pad('◀','side',-1)}{pad('▼','forward',-1)}{pad('▶','side',1)}</div>
+ <div className="phone-section-title">ALTITUDE & ROTATION</div><div className="phone-actions">{pad('＋ UP','vertical',1)}{pad('－ DOWN','vertical',-1)}{pad('↶ YAW','yaw',-1)}{pad('YAW ↷','yaw',1)}</div></section>
+ <p className="phone-hint">Giữ nút để điều khiển • Thả tay để dừng</p></main>;
+}
 
 function World({ position, yaw, fpv, paused, onGate, passed }) {
   const drone = useRef();
@@ -81,10 +113,30 @@ function Rotor({position}) {
 }
 
 export default function App(){
+ const controllerId=new URLSearchParams(window.location.search).get('controller');
+ if(controllerId)return <PhoneController peerId={controllerId}/>;
  const [pos,setPos]=useState([0,5,4]); const posRef=useRef([0,5,4]); const velocity=useRef([0,0,0]);
  const [yaw,setYaw]=useState(0); const yawRef=useRef(0); const keys=useRef({});
  const [paused,setPaused]=useState(false),[fpv,setFpv]=useState(false),[passed,setPassed]=useState([]);
  const [battery,setBattery]=useState(100),[speed,setSpeed]=useState(0);
+ const [maxSpeed,setMaxSpeed]=useState(8.5),[peerId,setPeerId]=useState(''),[phoneConnected,setPhoneConnected]=useState(false),[copied,setCopied]=useState(false);
+ const remote=useRef({forward:0,side:0,vertical:0,yaw:0}); const maxSpeedRef=useRef(8.5);maxSpeedRef.current=maxSpeed;
+ useEffect(()=>{
+  let peer;
+  loadPeerJS().then(Peer=>{
+   peer=new Peer();
+   peer.on('open',id=>setPeerId(id));
+   peer.on('connection',conn=>{
+    conn.on('open',()=>setPhoneConnected(true));
+    conn.on('data',data=>{if(data&&typeof data==='object'){remote.current={forward:data.forward||0,side:data.side||0,vertical:data.vertical||0,yaw:data.yaw||0};if(Number.isFinite(data.speed))setMaxSpeed(data.speed);}});
+    conn.on('close',()=>{setPhoneConnected(false);remote.current={forward:0,side:0,vertical:0,yaw:0};});
+   });
+   peer.on('error',()=>setNotice('PHONE CONNECTION ERROR — RELOAD TO RETRY'));
+  }).catch(()=>setNotice('PHONE LINK UNAVAILABLE — CHECK INTERNET'));
+  return()=>{try{peer?.destroy();}catch{}};
+ },[]);
+ const phoneUrl=peerId?window.location.origin+window.location.pathname+'?controller='+encodeURIComponent(peerId):'';
+ const copyPhoneLink=async()=>{try{await navigator.clipboard.writeText(phoneUrl);setCopied(true);setTimeout(()=>setCopied(false),1800);}catch{setNotice('COPY FAILED — USE QR CODE');}};
  const [notice,setNotice]=useState('READY TO FLY — CHECK YOUR SURROUNDINGS');
  useEffect(()=>{
   const down=e=>{const k=e.key.toLowerCase();if([' ','arrowup','arrowdown','arrowleft','arrowright'].includes(k))e.preventDefault();keys.current[k]=true;if(k==='p'||k==='escape')setPaused(v=>!v);if(k==='c')setFpv(v=>!v);};
@@ -93,11 +145,11 @@ export default function App(){
   let frame,last=performance.now(),ui=0;
   const tick=now=>{const dt=Math.min((now-last)/1000,.04);last=now;
    if(!paused){const k=keys.current;let p=posRef.current;let y=yawRef.current;
-    y+=((k.q?1:0)-(k.e?1:0))*dt*1.5;
-    const forward=((k.w||k.arrowup)?1:0)-((k.s||k.arrowdown)?1:0);
-    const side=((k.d||k.arrowright)?1:0)-((k.a||k.arrowleft)?1:0);
-    const vertical=((k[' ']||k.r)?1:0)-((k.shift||k.f)?1:0);
-    const v=8.5;const desired=[(Math.sin(y)*forward+Math.cos(y)*side)*v,vertical*v*.72,(-Math.cos(y)*forward+Math.sin(y)*side)*v];velocity.current=velocity.current.map((value,i)=>THREE.MathUtils.damp(value,desired[i],(forward||side||vertical)?5.5:2.2,dt));const nx=THREE.MathUtils.clamp(p[0]+velocity.current[0]*dt,-55,55);
+    y+=((k.q?1:0)-(k.e?1:0)+remote.current.yaw)*dt*1.5;
+    const forward=THREE.MathUtils.clamp((((k.w||k.arrowup)?1:0)-((k.s||k.arrowdown)?1:0))+remote.current.forward,-1,1);
+    const side=THREE.MathUtils.clamp((((k.d||k.arrowright)?1:0)-((k.a||k.arrowleft)?1:0))+remote.current.side,-1,1);
+    const vertical=THREE.MathUtils.clamp((((k[' ']||k.r)?1:0)-((k.shift||k.f)?1:0))+remote.current.vertical,-1,1);
+    const v=maxSpeedRef.current;const desired=[(Math.sin(y)*forward+Math.cos(y)*side)*v,vertical*v*.72,(-Math.cos(y)*forward+Math.sin(y)*side)*v];velocity.current=velocity.current.map((value,i)=>THREE.MathUtils.damp(value,desired[i],(forward||side||vertical)?5.5:2.2,dt));const nx=THREE.MathUtils.clamp(p[0]+velocity.current[0]*dt,-55,55);
     const nz=THREE.MathUtils.clamp(p[2]+velocity.current[2]*dt,-125,18);
     const ny=THREE.MathUtils.clamp(p[1]+velocity.current[1]*dt,1,35);
     posRef.current=[nx,ny,nz];yawRef.current=y;
@@ -114,6 +166,8 @@ export default function App(){
   <div className="sim-top"><div className="sim-brand"><span>✦</span> SKY<span>CTRL</span><small>DRONE FLIGHT SIMULATOR</small></div><div className="sim-live"><i/> SIMULATION ONLINE <b>• TRAINING MODE</b></div><div className="sim-buttons"><button onClick={()=>setFpv(v=>!v)}><Camera size={16}/>{fpv?'CHASE CAM':'FPV VIEW'}</button><button onClick={()=>setPaused(v=>!v)}>{paused?<Play size={16}/>:<Pause size={16}/>}</button><button onClick={reset}><RotateCcw size={16}/></button></div></div>
   <section className="sim-card sim-left"><div className="sim-label">FLIGHT TELEMETRY</div><div className="sim-metric"><span>ALTITUDE</span><strong>{pos[1].toFixed(1)} <small>m</small></strong></div><div className="sim-metric"><span>GROUND SPEED</span><strong>{speed.toFixed(0)} <small>m/s</small></strong></div><div className="sim-metric"><span>HEADING</span><strong>{((yaw*180/Math.PI+360)%360).toFixed(0)}°</strong></div><div className="sim-divider"/><div className="sim-battery"><Battery size={15}/><span>BATTERY</span><b>{battery.toFixed(0)}%</b></div><div className="sim-batbar"><i style={{width:battery+'%'}}/></div><div className="sim-signal"><Signal size={14}/> GPS LOCK <b>STRONG</b></div></section>
   <section className="sim-card sim-right"><div className="sim-label">FLIGHT PLAN</div><h3>GATE RUN</h3><p>Fly through the illuminated checkpoints in sequence.</p><div className="sim-progress"><i style={{width:(passed.length/6*100)+'%'}}/></div><div className="sim-gates"><b>{String(passed.length).padStart(2,'0')}</b> / 06 CHECKPOINTS</div>{passed.length===6&&<div className="sim-success">✦ FLIGHT COMPLETE</div>}</section>
+  <section className="sim-card sim-speed-panel"><div className="sim-label"><Gauge size={13}/> SPEED CONTROL</div><div className="sim-speed-value">{maxSpeed.toFixed(1)} <small>m/s</small></div><input aria-label="Maximum flight speed" type="range" min="1" max="20" step=".5" value={maxSpeed} onChange={e=>setMaxSpeed(Number(e.target.value))}/><div className="sim-speed-scale"><span>1 SLOW</span><span>20 FAST</span></div><div className="sim-speed-presets">{[3,8.5,14,20].map(v=><button key={v} className={maxSpeed===v?'active':''} onClick={()=>setMaxSpeed(v)}>{v===3?'SLOW':v===8.5?'NORMAL':v===14?'FAST':'MAX'}</button>)}</div></section>
+  <section className="sim-card sim-phone-panel"><div className="sim-label"><Smartphone size={13}/> PHONE LINK</div><div className="sim-phone-state"><i className={phoneConnected?'connected':''}/>{phoneConnected?'PHONE CONNECTED':'PAIR YOUR PHONE'}</div>{peerId?<><img className="sim-qr" alt="QR code to connect phone controller" src={'https://api.qrserver.com/v1/create-qr-code/?size=132x132&data='+encodeURIComponent(phoneUrl)}/><button className="sim-copy-link" onClick={copyPhoneLink}>{copied?<Check size={13}/>:<Copy size={13}/>} {copied?'COPIED':'COPY PHONE LINK'}</button><small>Quét mã QR bằng điện thoại cùng mạng internet.</small></>:<small>Đang tạo mã kết nối...</small>}</section>
   <div className="sim-notice">{notice}</div>
   <div className="sim-controls"><div className="sim-label">CONTROLS</div><div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>MOVE</span></div><div><kbd>SPACE</kbd><kbd>SHIFT</kbd><span>UP / DOWN</span></div><div><kbd>Q</kbd><kbd>E</kbd><span>YAW LEFT / RIGHT</span></div><div><kbd>C</kbd><span>FPV / CHASE CAMERA</span></div><div><kbd>P</kbd><span>PAUSE</span></div></div>
   <div className="sim-crosshair">＋</div>
