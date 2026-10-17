@@ -49,13 +49,22 @@ function Tower({x,z,color}) {
  return <group position={[x,0,z]}><mesh position={[0,1.7,0]}><cylinderGeometry args={[1.3,1.8,3.4,8]}/><meshStandardMaterial color="#7e929e" metalness={.5}/></mesh><mesh position={[0,3.9,0]}><octahedronGeometry args={[1.5]}/><meshStandardMaterial color={color} emissive={color} emissiveIntensity={.9}/></mesh><mesh position={[0,5.4,0]}><sphereGeometry args={[.35,16,12]}/><meshBasicMaterial color={color}/></mesh></group>;
 }
 function Hero({x,z,color,hp,player,small}) {
- return <group position={[x,0,z]} scale={small?.72:1}>
-  <mesh position={[0,.95,0]} castShadow><capsuleGeometry args={[.58,.85,5,10]}/><meshStandardMaterial color={color} metalness={.3} roughness={.38}/></mesh>
-  <mesh position={[0,1.95,0]} castShadow><sphereGeometry args={[.48,18,16]}/><meshStandardMaterial color={player?'#d9f6ff':'#f2d5c2'} roughness={.55}/></mesh>
-  <mesh position={[0,2.05,-.08]}><torusGeometry args={[.52,.12,8,20]}/><meshStandardMaterial color={color} metalness={.7}/></mesh>
-  <mesh position={[0,.18,0]} rotation={[-Math.PI/2,0,0]}><ringGeometry args={[.85,1,28]}/><meshBasicMaterial color={color} transparent opacity={.8}/></mesh>
-  <mesh position={[0,2.75,0]}><boxGeometry args={[1.5,.12,.08]}/><meshBasicMaterial color="#172331"/></mesh>
-  <mesh position={[-.75+1.5*clamp(hp,0,100)/100,2.75,.05]}><boxGeometry args={[1.5*clamp(hp,0,100)/100,.1,.05]}/><meshBasicMaterial color={hp>35?'#62e6a8':'#ff5b70'}/></mesh>
+ const metal=player?'#a9d9ed':'#a9aebc', accent=player?'#42d9ff':'#ff8a76';
+ return <group position={[x,0,z]} scale={small?.68:1}>
+  <mesh position={[0,.12,0]} rotation={[-Math.PI/2,0,0]}><circleGeometry args={[1.05,32]}/><meshBasicMaterial color={color} transparent opacity={.13}/></mesh>
+  <mesh position={[0,.2,0]} rotation={[-Math.PI/2,0,0]}><ringGeometry args={[.88,1.02,40]}/><meshBasicMaterial color={color} transparent opacity={.9}/></mesh>
+  <mesh position={[0,.85,0]} castShadow><capsuleGeometry args={[.55,.85,8,16]}/><meshStandardMaterial color={color} metalness={.65} roughness={.24}/></mesh>
+  <mesh position={[0,1.15,.43]} castShadow><boxGeometry args={[.82,.55,.18]}/><meshStandardMaterial color={metal} metalness={.8} roughness={.22}/></mesh>
+  <mesh position={[0,1.5,.48]}><torusGeometry args={[.37,.07,10,24]}/><meshStandardMaterial color={accent} metalness={.75} emissive={accent} emissiveIntensity={.25}/></mesh>
+  <mesh position={[0,1.95,0]} castShadow><sphereGeometry args={[.43,24,20]}/><meshStandardMaterial color={player?'#d9f6ff':'#e5bca9'} roughness={.4}/></mesh>
+  <mesh position={[0,2.18,0]} castShadow><coneGeometry args={[.49,.55,6]}/><meshStandardMaterial color={metal} metalness={.75} roughness={.22}/></mesh>
+  <mesh position={[0,2.04,.35]}><boxGeometry args={[.48,.12,.08]}/><meshBasicMaterial color={accent}/></mesh>
+  <mesh position={[-.62,1.05,0]} rotation={[0,0,-.25]} castShadow><cylinderGeometry args={[.13,.18,.8,8]}/><meshStandardMaterial color={metal} metalness={.8}/></mesh>
+  <mesh position={[.68,1.18,.05]} rotation={[0,0,-.55]} castShadow><boxGeometry args={[.12,1.35,.16]}/><meshStandardMaterial color={metal} metalness={.85}/></mesh>
+  <mesh position={[.68,1.9,.05]} rotation={[0,0,-.55]}><coneGeometry args={[.16,.38,6]}/><meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={.45}/></mesh>
+  <mesh position={[0,2.82,0]}><boxGeometry args={[1.55,.13,.08]}/><meshBasicMaterial color="#101d2b"/></mesh>
+  <mesh position={[-.775+.0+1.55*clamp(hp,0,100)/200,2.82,.06]}><boxGeometry args={[1.55*clamp(hp,0,100)/100,.1,.05]}/><meshBasicMaterial color={hp>35?'#62e6a8':'#ff5b70'}/></mesh>
+  {player&&<pointLight position={[0,2,0]} color="#4bdcff" intensity={1.2} distance={5}/>}
  </group>;
 }
 function SpellEffect({fx}) {
@@ -102,7 +111,7 @@ export default function App(){
  function cast(kind){if(paused||dead||won||coolRef.current[kind]>0)return;const p=playerRef.current;const cd={Q:4,E:7,R:18}[kind];coolRef.current={...coolRef.current,[kind]:cd};setCool({...coolRef.current});if(kind==='E'){playerRef.current={x:clamp(p.x,-48,48),z:clamp(p.z-8,-44,44)};setPlayer(playerRef.current);}const radius=kind==='R'?18:kind==='Q'?10:6;const damage={Q:48,E:32,R:100}[kind];const list=enemyRef.current.map(e=>Math.hypot(e.x-p.x,e.z-p.z)<radius?{...e,hp:e.hp-damage}:e).filter(e=>e.hp>0);if(list.length<enemyRef.current.length){setKills(v=>v+enemyRef.current.length-list.length);setNotice(kind==='R'?'SIÊU CHIÊU! QUÉT SẠCH KHU VỰC':'KỸ NĂNG TRÚNG ĐÍCH!');}enemyRef.current=list;setEnemies(list);showFx(kind,p.x,p.z-2);}
  function reset(){playerRef.current={x:0,z:28};setPlayer(playerRef.current);hpRef.current=100;setHp(100);enemyRef.current=START_ENEMIES;setEnemies(START_ENEMIES);setKills(0);setCoreHp(100);setDead(false);setWon(false);setPaused(false);coolRef.current={Q:0,E:0,R:0};setCool({...coolRef.current});setNotice('TRẬN ĐẤU MỚI • TIẾN LÊN ĐƯỜNG GIỮA');}
  return <main className="moba-shell">
-  <Canvas shadows camera={{position:[0,38,62],fov:48}}><Arena player={player} enemies={enemies} allyMinions={allyMinions} enemyCoreHp={coreHp} playerHp={hp} fx={fx}/></Canvas>
+  <Canvas shadows dpr={[1,2]} gl={{antialias:true,alpha:false}} camera={{position:[0,38,62],fov:48}}><Arena player={player} enemies={enemies} allyMinions={allyMinions} enemyCoreHp={coreHp} playerHp={hp} fx={fx}/></Canvas>
   <header className="moba-top"><div className="moba-logo">ARENA <b>ZERO</b><small>5V5 • FANTASY MOBA</small></div><div className="moba-score"><span>BLUE TEAM</span><strong>{kills}</strong><i>VS</i><strong>{Math.max(0,5-enemies.length)}</strong><span>RED TEAM</span></div><div className="moba-top-actions"><button onClick={()=>setPaused(v=>!v)}>{paused?<Play/>:<Pause/>}</button><button onClick={reset}><RotateCcw/></button></div></header>
   <div className="moba-objective"><Trophy size={14}/> MỤC TIÊU: PHÁ HỦY NHÀ CHÍNH ĐỎ <b>•</b> ĐƯỜNG GIỮA</div>
   <aside className="moba-stats"><div className="moba-player-name"><span className="hero-avatar">✦</span><div><b>AZURE KNIGHT</b><small>LEVEL 1 • WARRIOR</small></div></div><div className="stat-row"><Heart size={14}/><div className="stat-track"><i style={{width:hp+'%'}}/></div><b>{Math.ceil(hp)}/100</b></div><div className="stat-row mana"><Zap size={14}/><div className="stat-track"><i style={{width:'85%'}}/></div><b>85/100</b></div><div className="stat-row"><Shield size={14}/><span>ARMOR</span><b>12</b></div></aside>
