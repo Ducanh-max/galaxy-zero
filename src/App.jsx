@@ -69,8 +69,6 @@ function World({ position, yaw, fpv, paused, onGate, passed }) {
         <mesh position={[0,-.24,0]}><sphereGeometry args={[.055,12,10]}/><meshStandardMaterial color={i%2?'#ff604f':'#48eaff'} emissive={i%2?'#ff3020':'#16b9df'} emissiveIntensity={1.5}/></mesh>
       </group>)}
       <pointLight position={[0,0,.7]} color="#40eaff" intensity={1.5} distance={4}/>
-    </group>)}
-      <pointLight position={[0,0,.7]} color="#40eaff" intensity={1.5} distance={4}/>
     </group>
     <Float speed={1.2} floatIntensity={.15}><mesh position={[-22,14,-65]}><sphereGeometry args={[7,32,32]}/><meshStandardMaterial color="#d7e4df" roughness={1}/></mesh></Float>
     <Sparkles count={100} scale={[65,25,130]} position={[0,8,-55]} size={1.4} speed={.2} color="#ffffff"/>
