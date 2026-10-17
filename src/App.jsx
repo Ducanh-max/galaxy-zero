@@ -1,8 +1,8 @@
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { Stars, Float, Sparkles, Html } from '@react-three/drei';
+import { Stars, Float, Sparkles } from '@react-three/drei';
 import * as THREE from 'three';
-import { Activity, BatteryCharging, Compass, Crosshair, Gem, Heart, Map, Pause, Play, Radio, Rocket, Shield, Volume2, VolumeX, Zap } from 'lucide-react';
+import { BatteryCharging, Compass, Crosshair, Gem, Heart, Map, Pause, Play, Radio, Rocket, Shield, Volume2, VolumeX, Zap } from 'lucide-react';
 
 const PLANETS = [
   { id: 'elysium', name: 'ELYSIUM-4', title: 'Echoes of Elysium', ground: '#17233b', grid: '#294568', sky: '#4b4a9c', glow: '#8c79ff', resource: 'ENERGY SHARDS' },
@@ -92,7 +92,7 @@ function Astronaut({ position }) {
   </group>;
 }
 
-function Crystal({ position, collected, onCollect, index }) {
+function Crystal({ position, collected, onCollect, index, color }) {
   const ref = useRef();
   useFrame((state) => {
     if (ref.current && !collected) {
@@ -105,9 +105,9 @@ function Crystal({ position, collected, onCollect, index }) {
     <Float speed={2} rotationIntensity={0.4} floatIntensity={0.3}>
       <mesh castShadow>
         <octahedronGeometry args={[0.38, 0]} />
-        <meshStandardMaterial color="#62eaff" emissive="#1bb8e8" emissiveIntensity={2.3} metalness={0.35} roughness={0.18} />
+        <meshStandardMaterial color={color} emissive={color} emissiveIntensity={2.3} metalness={0.35} roughness={0.18} />
       </mesh>
-      <pointLight color="#34dfff" intensity={0.7} distance={2.4} />
+      <pointLight color={color} intensity={0.7} distance={2.4} />
     </Float>
   </group>;
 }
@@ -162,7 +162,7 @@ function World({ player, collected, onCollect, flying, planet }) {
     <Ground planet={planet} />
     {!flying && <Astronaut position={player} />}
     <Spaceship position={player} flying={flying} />
-    {CRYSTALS.map((p, i) => <Crystal key={i} position={p} index={i} collected={collected.includes(i)} onCollect={() => onCollect(i)} />)}
+    {CRYSTALS.map((p, i) => <Crystal key={i} position={p} index={i} collected={collected.includes(i)} onCollect={() => onCollect(i)} color={planet.glow} />)}
     <Drone position={[-7, 0, 2]} index={1} />
     <Drone position={[7, 0, 5]} index={2} />
     <mesh position={[0, 0.05, -10]} rotation={[-Math.PI / 2, 0, 0]}>
@@ -214,7 +214,7 @@ export default function App() {
         const next = [
           THREE.MathUtils.clamp(playerRef.current[0] + x * dt * (flying ? 9 : 5.2), -14, 14),
           0,
-          THREE.MathUtils.clamp(playerRef.current[2] + z * dt * 5.2, -14, 14)
+          THREE.MathUtils.clamp(playerRef.current[2] + z * dt * (flying ? 9 : 5.2), -14, 14)
         ];
         playerRef.current = next;
         setPlayer(next);
